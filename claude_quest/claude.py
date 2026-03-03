@@ -46,20 +46,6 @@ def _stage_quest(quest_id: str, cwd: Path) -> Path:
     else:
         dst_files.mkdir()
 
-    # Stage side quest snapshots into children/<id>/
-    children = state.get_children(quest_id)
-    if children:
-        children_dir = local / "children"
-        children_dir.mkdir()
-        for child in children:
-            child_local = children_dir / child.id
-            child_local.mkdir()
-            child_quest_dir = state.get_quest_dir(child.id)
-            for fname in ("meta.json", "state.md", "log.md"):
-                src = child_quest_dir / fname
-                if src.exists():
-                    shutil.copy2(src, child_local / fname)
-
     return local
 
 
@@ -73,18 +59,6 @@ def build_system_prompt(quest_id: str, local_dir_name: str) -> str:
     meta = state.get_quest(quest_id)
     depth = state.quest_depth(quest_id)
     state_content = state.get_state(quest_id)
-
-    # Build side quest summaries
-    children_lines = []
-    children = state.get_children(quest_id)
-    for child in children:
-        status_marker = "open" if child.status == "open" else "merged"
-        desc = f" — {child.description}" if child.description else ""
-        children_lines.append(
-            f"  - {child.name} ({child.id}) [{status_marker}]{desc}"
-            f"  → {local_dir_name}/children/{child.id}/"
-        )
-    children_section = "\n".join(children_lines) if children_lines else "  (none)"
 
     # Build ancestry chain
     ancestry = []
@@ -110,9 +84,6 @@ This session is running inside a quest. The information below is background cont
 **Session**: #{meta.session_count + 1} | Depth: {depth}
 **Description**: {meta.description or "(none)"}
 
-## Side Quests
-{children_section}
-
 ## Accumulated State
 {state_content}
 
@@ -122,8 +93,9 @@ A read-only snapshot is at `{local_dir_name}/` in your working directory:
 ```
 {local_dir_name}/
   meta.json, state.md, log.md, files/
-  children/<child-id>/meta.json, state.md, log.md
 ```
+
+To read another quest's contents, use `claude-quest dump <name|id>` to copy it into the working directory.
 
 ## Quest Commands Reference
 

@@ -56,9 +56,10 @@ All session launchers support:
 
 | Command | Description |
 |---|---|
-| `claude-quest new <name> [-s sytem-prompt] [-- claude-flags]` | Create a root quest, set active, launch Claude |
-| `claude-quest go [name\|id] [-s sytem-prompt] [-- claude-flags]` | Resume a quest (default: active), launch Claude |
-| `claude-quest side [-n name] [-s sytem-prompt] [-- claude-flags]` | Fork from active quest, launch Claude |
+| `claude-quest new <name>` | Create a root quest, set active, launch Claude |
+| `claude-quest go [name\|id]` | Resume a quest (default: active), launch Claude |
+| `claude-quest side [-n name] [--from quest]` | Branch a side quest (child) from a quest, launch Claude |
+| `claude-quest side [-n name] [--from quest] --fork` | Fork as independent root — copies state but no parent link |
 
 *-s* will add to the SYSTEM PROMPT given to claude. The state saved on `commit` commands run by claude is also adding to the system prompt.
 
@@ -164,20 +165,33 @@ Claude's system prompt provides quest context as passive background information.
 
 Environment variables (`CLAUDE_QUEST_ID`, `CLAUDE_QUEST_NAME`, etc.) are set automatically so commands like `claude-quest commit` and `claude-quest attach` know which quest to target without arguments.
 
-### Quest branching
+### Branching and forking
 
-```
-claude-quest new "project-x"          # root quest
-claude-quest side -n "experiment-a"   # side quest under project-x
-claude-quest side -n "experiment-b"   # another side quest
+**Side quest** — a child branch that stays in the parent's tree. Use for exploration that might merge back.
+
+**Fork** — copies state but becomes an independent root. Use when a quest outgrows its parent or takes a new direction.
+
+Both copy `state.md`, `log.md`, and `files/` from the source quest.
+
+```bash
+# Side quest: branches under project-x
+claude-quest side -n "experiment-a"
+
+# Side quest from a specific quest (not just active)
+claude-quest side -n "experiment-b" --from project-x
+
+# Fork: independent root with project-x's state
+claude-quest side -n "project-x-v2" --from project-x --fork
+
 claude-quest tree
 
 └── ● project-x (a1b2c3)
     ├── ● experiment-a (d4e5f6)
     └── ● experiment-b (g7h8i9)
+● project-x-v2 (j0k1l2)              # independent root
 ```
 
-Side quests fork the parent's `state.md`, `log.md`, and `files/` — they pick up where the parent left off. Merge a side quest back by reading its state from the snapshot and committing a synthesized version.
+To merge a side quest back: dump it (`claude-quest dump <id>`), synthesize its findings into the parent's state, commit, then mark it merged (`claude-quest merge <id>`).
 
 ### Name uniqueness
 

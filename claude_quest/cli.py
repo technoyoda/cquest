@@ -84,40 +84,52 @@ def go(id_or_name: str | None, system_prompt: str | None, prompt_mode: str, max_
 
 
 @cli.command(context_settings={"ignore_unknown_options": True})
-@click.option("--name", "-n", default=None, help="Name for the side quest (auto-generated if omitted).")
-@click.option("--from", "from_quest", default=None, help="Parent quest name or ID to fork from (default: active quest).")
+@click.option("--name", "-n", default=None, help="Name for the new quest (auto-generated if omitted).")
+@click.option("--from", "from_quest", default=None, help="Source quest name or ID (default: active quest).")
+@click.option("--fork", is_flag=True, help="Fork as independent root instead of a child branch.")
 @click.option("--system-prompt", "-s", default=None, help="Additional system prompt text.")
 @click.option("--prompt-mode", type=click.Choice(["append", "replace"]), default="append", help="How to inject the quest prompt: append to default or replace it.")
 @click.option("--max-state-size", default=claude.DEFAULT_MAX_STATE_KB, type=int, help="Max state.md size in KB (default: 80).")
 @click.argument("extra_args", nargs=-1, type=click.UNPROCESSED)
-def side(name: str | None, from_quest: str | None, system_prompt: str | None, prompt_mode: str, max_state_size: int, extra_args: tuple):
-    """Fork a side quest and launch Claude.
+def side(name: str | None, from_quest: str | None, fork: bool, system_prompt: str | None, prompt_mode: str, max_state_size: int, extra_args: tuple):
+    """Branch or fork from an existing quest and launch Claude.
 
-    Forks from the active quest by default, or from a specific quest with --from.
+    By default, creates a side quest (child branch) under the source quest.
+    Use --fork to create an independent root that copies the source's state
+    but has no parent link.
+
     Extra args after -- are passed through to claude.
     """
     if from_quest:
         try:
-            parent = state.get_quest(from_quest)
+            source = state.get_quest(from_quest)
         except FileNotFoundError:
             console.print(f"[red]Quest '{from_quest}' not found.[/red]")
             raise SystemExit(1)
     else:
-        parent = state.get_active()
-        if parent is None:
+        source = state.get_active()
+        if source is None:
             console.print("[red]No active quest. Use --from <quest> or create one with 'claude-quest new' first.[/red]")
             raise SystemExit(1)
 
-    side_name = name or f"side-{parent.name}"
+    prefix = "fork" if fork else "side"
+    side_name = name or f"{prefix}-{source.name}"
     if state.name_exists(side_name):
         console.print(f"[red]Quest named '{side_name}' already exists.[/red]")
         raise SystemExit(1)
-    meta = state.create_quest(side_name, parent_id=parent.id)
+    meta = state.create_quest(side_name, parent_id=source.id, fork=fork)
     state.set_active(meta.id)
-    console.print(
-        f"[green]Created side quest[/green] [bold]{meta.name}[/bold] [dim]({meta.id})[/dim]"
-        f" from [bold]{parent.name}[/bold]"
-    )
+
+    if fork:
+        console.print(
+            f"[green]Forked[/green] [bold]{meta.name}[/bold] [dim]({meta.id})[/dim]"
+            f" from [bold]{source.name}[/bold] [dim](independent root)[/dim]"
+        )
+    else:
+        console.print(
+            f"[green]Created side quest[/green] [bold]{meta.name}[/bold] [dim]({meta.id})[/dim]"
+            f" from [bold]{source.name}[/bold]"
+        )
     claude.launch_claude(
         meta.id,
         extra_args=list(extra_args) if extra_args else None,

@@ -75,21 +75,26 @@ def _load_meta(quest_id: str) -> QuestMeta:
 # --- Public API ---
 
 
-def create_quest(name: str, parent_id: str | None = None) -> QuestMeta:
+def create_quest(name: str, parent_id: str | None = None, fork: bool = False) -> QuestMeta:
     _ensure_root()
     qid = _short_id()
     qdir = _quest_dir(qid)
     qdir.mkdir(parents=True)
 
     if parent_id:
-        # Fork: inherit root from parent
         parent = _load_meta(parent_id)
-        root_id = parent.root or parent.id
         cwd = str(Path.cwd())
-        meta = QuestMeta(id=qid, name=name, root=root_id, parent=parent_id, created_dir=cwd)
+
+        if fork:
+            # Fork: copy state but become independent root (no parent link)
+            meta = QuestMeta(id=qid, name=name, root=qid, parent=None, created_dir=cwd)
+        else:
+            # Side quest: branch under parent, stay in the tree
+            root_id = parent.root or parent.id
+            meta = QuestMeta(id=qid, name=name, root=root_id, parent=parent_id, created_dir=cwd)
         _save_meta(meta)
 
-        # Copy parent's state, log, and files into the new quest
+        # Copy source quest's state, log, and files
         parent_dir = _quest_dir(parent_id)
         for fname in ("state.md", "log.md"):
             src = parent_dir / fname
@@ -100,10 +105,8 @@ def create_quest(name: str, parent_id: str | None = None) -> QuestMeta:
             shutil.copytree(parent_files, _files_dir(qid))
         else:
             _files_dir(qid).mkdir()
-
-        # No need to update parent — children are discovered by scanning
     else:
-        # Root quest: root is self
+        # New root quest
         cwd = str(Path.cwd())
         meta = QuestMeta(id=qid, name=name, root=qid, created_dir=cwd)
         _save_meta(meta)

@@ -170,8 +170,22 @@ def launch_claude(
     env["CLAUDE_QUEST_NAME"] = meta.name
     env["CLAUDE_QUEST_ROOT"] = str(state.QUESTS_ROOT)
 
+    # Auto-approve read operations and dump
+    ALLOWED_TOOLS = [
+        "Bash(claude-quest status*)",
+        "Bash(claude-quest tree*)",
+        "Bash(claude-quest list*)",
+        "Bash(claude-quest log*)",
+        "Bash(claude-quest describe*)",
+        "Bash(claude-quest history*)",
+        "Bash(claude-quest show*)",
+        "Bash(claude-quest dump*)",
+    ]
+
     prompt_flag = "--system-prompt" if prompt_mode == "replace" else "--append-system-prompt"
     cmd = ["claude", prompt_flag, prompt]
+    for tool in ALLOWED_TOOLS:
+        cmd.extend(["--allowedTools", tool])
     if extra_args:
         cmd.extend(extra_args)
 

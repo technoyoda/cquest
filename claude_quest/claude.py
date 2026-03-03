@@ -55,10 +55,16 @@ def _cleanup(local_dir: Path):
         shutil.rmtree(local_dir)
 
 
-def build_system_prompt(quest_id: str, local_dir_name: str) -> str:
+DEFAULT_MAX_STATE_KB = 80
+
+
+def build_system_prompt(quest_id: str, local_dir_name: str, max_state_kb: int = DEFAULT_MAX_STATE_KB) -> str:
     meta = state.get_quest(quest_id)
     depth = state.quest_depth(quest_id)
     state_content = state.get_state(quest_id)
+
+    state_size_kb = len(state_content.encode("utf-8")) / 1024
+    max_state_kb = max_state_kb
 
     # Build ancestry chain
     ancestry = []
@@ -84,7 +90,7 @@ This session is running inside a quest. The information below is background cont
 **Session**: #{meta.session_count + 1} | Depth: {depth}
 **Description**: {meta.description or "(none)"}
 
-## Accumulated State
+## Accumulated State ({state_size_kb:.1f}KB / {max_state_kb}KB limit)
 {state_content}
 
 ## Quest Snapshot
@@ -102,6 +108,8 @@ To read another quest's contents, use `claude-quest dump <name|id>` to copy it i
 **NEVER run these unless the user explicitly asks you to.** Do not auto-commit, auto-attach, auto-merge, or auto-dump.
 
 **Before any commit:** Always read the current `{local_dir_name}/state.md` and `{local_dir_name}/log.md` first. Then draft what you plan to write and show it to the user for confirmation before running the commit command. Commits are versioned — every commit creates a permanent forward entry in history.
+
+**State size budget:** state.md is currently {state_size_kb:.1f}KB of {max_state_kb}KB. If a commit would push state.md beyond the limit, nudge the user to summarize or restructure before committing. Move detailed content to attached files (`claude-quest attach`) and keep state.md as a concise summary. The knowledge base in `files/` has no size limit — only state.md is budgeted because it's injected into every session's context window.
 
 **Dumped snapshots are temporary.** When you dump another quest's content for reference, clean up the `.quest-<name>/` directory (rm -rf) once you're done reading it. Don't leave dumped snapshots lying around.
 
@@ -129,6 +137,7 @@ def launch_claude(
     extra_args: list[str] | None = None,
     extra_system_prompt: str | None = None,
     prompt_mode: str = "append",
+    max_state_kb: int = DEFAULT_MAX_STATE_KB,
 ):
     from rich.console import Console
     console = Console()
@@ -159,7 +168,7 @@ def launch_claude(
     local_dir_name = _local_dir_name(meta.name)
     local_dir = _stage_quest(quest_id, cwd)
 
-    prompt = build_system_prompt(quest_id, local_dir_name)
+    prompt = build_system_prompt(quest_id, local_dir_name, max_state_kb=max_state_kb)
     if extra_system_prompt:
         prompt += f"\n{extra_system_prompt}"
 

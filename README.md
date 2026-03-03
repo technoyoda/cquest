@@ -51,6 +51,7 @@ claude-quest side -n "experiment" -s "Try a different approach" -- --allowedTool
 
 All session launchers support:
 - `-s / --system-prompt "..."` — append additional text to the system prompt
+- `--max-state-size <KB>` — max state.md size in KB (default: 80). Increase for models with larger context windows
 - `-- <flags>` — pass through extra flags to the underlying `claude` command
 
 | Command | Description |
@@ -195,6 +196,20 @@ claude-quest restore abc1234 -q my-project-id
 ```
 
 Side quests start with a fresh git history — they don't inherit the parent's commits.
+
+### State size budget
+
+`state.md` is injected into every session's system prompt. To keep it within the model's context window, its size is budgeted — default 80KB (~20K tokens). The system prompt tells Claude the current size and limit, so it nudges users to summarize or restructure when state grows large.
+
+The `files/` knowledge base has **no size limit**. Detailed research, artifacts, and reference material should live in attached files, with `state.md` serving as a concise summary pointing to them.
+
+```bash
+# Default: 80KB state budget
+claude-quest go my-project
+
+# Larger budget for models with bigger context windows
+claude-quest go my-project --max-state-size 150
+```
 
 ## meta.json schema
 

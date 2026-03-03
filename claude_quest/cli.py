@@ -26,8 +26,9 @@ def cli():
 @click.argument("name")
 @click.option("--system-prompt", "-s", default=None, help="Additional system prompt text.")
 @click.option("--prompt-mode", type=click.Choice(["append", "replace"]), default="append", help="How to inject the quest prompt: append to default or replace it.")
+@click.option("--max-state-size", default=claude.DEFAULT_MAX_STATE_KB, type=int, help="Max state.md size in KB (default: 80).")
 @click.argument("extra_args", nargs=-1, type=click.UNPROCESSED)
-def new(name: str, system_prompt: str | None, prompt_mode: str, extra_args: tuple):
+def new(name: str, system_prompt: str | None, prompt_mode: str, max_state_size: int, extra_args: tuple):
     """Create a new root quest and launch Claude.
 
     Extra args after -- are passed through to claude.
@@ -43,6 +44,7 @@ def new(name: str, system_prompt: str | None, prompt_mode: str, extra_args: tupl
         extra_args=list(extra_args) if extra_args else None,
         extra_system_prompt=system_prompt,
         prompt_mode=prompt_mode,
+        max_state_kb=max_state_size,
     )
 
 
@@ -50,8 +52,9 @@ def new(name: str, system_prompt: str | None, prompt_mode: str, extra_args: tupl
 @click.argument("id_or_name", required=False)
 @click.option("--system-prompt", "-s", default=None, help="Additional system prompt text.")
 @click.option("--prompt-mode", type=click.Choice(["append", "replace"]), default="append", help="How to inject the quest prompt: append to default or replace it.")
+@click.option("--max-state-size", default=claude.DEFAULT_MAX_STATE_KB, type=int, help="Max state.md size in KB (default: 80).")
 @click.argument("extra_args", nargs=-1, type=click.UNPROCESSED)
-def go(id_or_name: str | None, system_prompt: str | None, prompt_mode: str, extra_args: tuple):
+def go(id_or_name: str | None, system_prompt: str | None, prompt_mode: str, max_state_size: int, extra_args: tuple):
     """Resume a quest and launch Claude.
 
     Extra args after -- are passed through to claude.
@@ -76,6 +79,7 @@ def go(id_or_name: str | None, system_prompt: str | None, prompt_mode: str, extr
         extra_args=list(extra_args) if extra_args else None,
         extra_system_prompt=system_prompt,
         prompt_mode=prompt_mode,
+        max_state_kb=max_state_size,
     )
 
 
@@ -83,8 +87,9 @@ def go(id_or_name: str | None, system_prompt: str | None, prompt_mode: str, extr
 @click.option("--name", "-n", default=None, help="Name for the side quest (auto-generated if omitted).")
 @click.option("--system-prompt", "-s", default=None, help="Additional system prompt text.")
 @click.option("--prompt-mode", type=click.Choice(["append", "replace"]), default="append", help="How to inject the quest prompt: append to default or replace it.")
+@click.option("--max-state-size", default=claude.DEFAULT_MAX_STATE_KB, type=int, help="Max state.md size in KB (default: 80).")
 @click.argument("extra_args", nargs=-1, type=click.UNPROCESSED)
-def side(name: str | None, system_prompt: str | None, prompt_mode: str, extra_args: tuple):
+def side(name: str | None, system_prompt: str | None, prompt_mode: str, max_state_size: int, extra_args: tuple):
     """Fork a side quest from the active quest and launch Claude.
 
     Extra args after -- are passed through to claude.
@@ -109,6 +114,7 @@ def side(name: str | None, system_prompt: str | None, prompt_mode: str, extra_ar
         extra_args=list(extra_args) if extra_args else None,
         extra_system_prompt=system_prompt,
         prompt_mode=prompt_mode,
+        max_state_kb=max_state_size,
     )
 
 

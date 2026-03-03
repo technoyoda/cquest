@@ -164,6 +164,18 @@ def list_all() -> list[QuestMeta]:
     return results
 
 
+def name_exists(name: str) -> bool:
+    if not QUESTS_DIR.exists():
+        return False
+    for d in QUESTS_DIR.iterdir():
+        mp = d / "meta.json"
+        if mp.exists():
+            m = QuestMeta.model_validate_json(mp.read_text())
+            if m.name == name:
+                return True
+    return False
+
+
 def get_children(quest_id: str) -> list[QuestMeta]:
     meta = _load_meta(quest_id)
     children = []

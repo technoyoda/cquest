@@ -25,6 +25,9 @@ def cli():
 @click.argument("name")
 def new(name: str):
     """Create a new root quest and launch Claude."""
+    if state.name_exists(name):
+        console.print(f"[red]Quest named '{name}' already exists.[/red]")
+        raise SystemExit(1)
     meta = state.create_quest(name)
     state.set_active(meta.id)
     console.print(f"[green]Created quest[/green] [bold]{meta.name}[/bold] [dim]({meta.id})[/dim]")
@@ -64,6 +67,9 @@ def side(name: str | None):
         raise SystemExit(1)
 
     side_name = name or f"side-{active.name}"
+    if state.name_exists(side_name):
+        console.print(f"[red]Quest named '{side_name}' already exists.[/red]")
+        raise SystemExit(1)
     meta = state.create_quest(side_name, parent_id=active.id)
     state.set_active(meta.id)
     console.print(
@@ -113,11 +119,14 @@ def rename(id_or_name: str, name: str):
     """Rename a quest."""
     try:
         meta = state.get_quest(id_or_name)
-        state.update_meta(meta.id, name=name)
-        console.print(f"[green]Renamed[/green] [dim]({meta.id})[/dim] → [bold]{name}[/bold]")
     except FileNotFoundError:
         console.print(f"[red]Quest '{id_or_name}' not found.[/red]")
         raise SystemExit(1)
+    if state.name_exists(name):
+        console.print(f"[red]Quest named '{name}' already exists.[/red]")
+        raise SystemExit(1)
+    state.update_meta(meta.id, name=name)
+    console.print(f"[green]Renamed[/green] [dim]({meta.id})[/dim] → [bold]{name}[/bold]")
 
 
 @cli.command()
@@ -133,11 +142,12 @@ def delete(id_or_name: str, force: bool):
 
     children = state.get_children(meta.id)
     if not force:
-        msg = f"Delete [bold]{meta.name}[/bold] ({meta.id})"
+        msg = f"Delete [bold]{meta.name}[/bold] [dim]({meta.id})[/dim]"
         if children:
-            msg += f" and {len(children)} children"
-        msg += "?"
-        if not click.confirm(msg):
+            msg += f" and [bold]{len(children)}[/bold] children"
+        msg += "? [dim](y/N)[/dim] "
+        answer = console.input(msg).strip().lower()
+        if answer not in ("y", "yes"):
             console.print("[dim]Cancelled.[/dim]")
             return
 

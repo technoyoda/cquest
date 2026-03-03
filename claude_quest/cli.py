@@ -120,6 +120,31 @@ def rename(id_or_name: str, name: str):
         raise SystemExit(1)
 
 
+@cli.command()
+@click.argument("id_or_name")
+@click.option("--force", "-f", is_flag=True, help="Skip confirmation prompt.")
+def delete(id_or_name: str, force: bool):
+    """Delete a quest and all its children."""
+    try:
+        meta = state.get_quest(id_or_name)
+    except FileNotFoundError:
+        console.print(f"[red]Quest '{id_or_name}' not found.[/red]")
+        raise SystemExit(1)
+
+    children = state.get_children(meta.id)
+    if not force:
+        msg = f"Delete [bold]{meta.name}[/bold] ({meta.id})"
+        if children:
+            msg += f" and {len(children)} children"
+        msg += "?"
+        if not click.confirm(msg):
+            console.print("[dim]Cancelled.[/dim]")
+            return
+
+    state.delete_quest(meta.id)
+    console.print(f"[red]Deleted[/red] [bold]{meta.name}[/bold] [dim]({meta.id})[/dim]")
+
+
 @cli.command("list")
 def list_cmd():
     """List all root quests."""

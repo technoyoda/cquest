@@ -101,106 +101,44 @@ def build_system_prompt(quest_id: str, local_dir_name: str) -> str:
     )
 
     prompt = f"""\
-# Quest Context
+# Quest Context (Background)
 
-You are operating within a **quest** — a persistent, branching context that survives across Claude Code sessions.
+This session is running inside a quest. The information below is background context — use it to inform your work but do NOT take any quest actions unless the user explicitly asks.
 
-## Identity
-- **Quest**: {meta.name}
-- **ID**: {meta.id}
-- **Lineage**: {ancestry_str}
-- **Depth**: {depth}
-- **Sessions so far**: {meta.session_count}
-- **Description**: {meta.description or "(none)"}
+**Quest**: {meta.name} ({meta.id})
+**Lineage**: {ancestry_str}
+**Session**: #{meta.session_count + 1} | Depth: {depth}
+**Description**: {meta.description or "(none)"}
 
-## Side Quests (children)
+## Side Quests
 {children_section}
 
 ## Accumulated State
 {state_content}
 
-## Reading Quest Data
+## Quest Snapshot
 
-A snapshot of quest state is available at `{local_dir_name}/` in your working directory:
+A read-only snapshot is at `{local_dir_name}/` in your working directory:
 ```
 {local_dir_name}/
-  meta.json       # Quest identity and relationships
-  state.md        # Accumulated knowledge state
-  log.md          # Session log history
-  files/          # Attached artifacts
-  children/       # Side quest snapshots
-    <child-id>/
-      meta.json
-      state.md
-      log.md
-```
-You can read any of these files for context. This is a **read-only snapshot** — do NOT edit these files directly.
-
-## Mutating Quest State
-
-**All mutations MUST go through `claude-quest` CLI commands.** Do not edit quest files directly.
-
-### Commit (persist state)
-When the user says "commit" or you want to save progress, run:
-```bash
-claude-quest commit --state "$(cat <<'QUEST_EOF'
-# Updated state content here
-...summarize what you know, what was done, what's next...
-QUEST_EOF
-)"
-```
-You can also append to the session log:
-```bash
-claude-quest commit --log "Session N: did X, Y, Z"
-```
-Or both at once:
-```bash
-claude-quest commit --state "..." --log "..."
+  meta.json, state.md, log.md, files/
+  children/<child-id>/meta.json, state.md, log.md
 ```
 
-### Attach files
-To save artifacts (code, notes, research) to the quest:
-```bash
-claude-quest attach <filepath>
-```
+## Quest Commands Reference
 
-### Rename
-```bash
-claude-quest rename {meta.id} "new-name"
-```
+**NEVER run these unless the user explicitly asks you to.** Do not auto-commit, auto-attach, or auto-merge.
 
-### Describe
-```bash
-claude-quest describe                              # show description
-claude-quest describe {meta.id} --set "new desc"   # set description
-```
-
-### Show quest tree
-```bash
-claude-quest tree
-```
-
-### Show quest status
-```bash
-claude-quest status
-```
-
-### Merge a side quest
-Read the side quest's state from `{local_dir_name}/children/<id>/state.md`, then commit a merged version:
-```bash
-claude-quest commit --state "...merged state..." --merge <child-id>
-```
-
-## Important
-- `{local_dir_name}/` is a **read-only snapshot** staged for this session. It will be wiped when the session ends.
-- To persist anything, you MUST use `claude-quest commit`, `claude-quest attach`, etc.
-- Changes made via CLI commands are saved to the global quest store immediately.
-- Do NOT write to `{local_dir_name}/` or `~/.quests/` directly.
-
-## Environment Variables Available
-- `CLAUDE_QUEST_ID={meta.id}`
-- `CLAUDE_QUEST_NAME={meta.name}`
-- `CLAUDE_QUEST_ROOT={state.QUESTS_ROOT}`
+| Command | What it does |
+|---|---|
+| `claude-quest commit --state "..."` | Overwrite state.md |
+| `claude-quest commit --log "..."` | Append to log.md |
+| `claude-quest commit --state "..." --merge <id>` | Merge a side quest |
+| `claude-quest attach <file>` | Save a file to quest storage |
+| `claude-quest rename {meta.id} "name"` | Rename this quest |
+| `claude-quest describe {meta.id} --set "desc"` | Set description |
+| `claude-quest tree` | Show quest tree |
+| `claude-quest status` | Show quest details |
 """
     return prompt
 

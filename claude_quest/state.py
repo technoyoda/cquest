@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -77,18 +78,31 @@ def create_quest(name: str, parent_id: str | None = None) -> QuestMeta:
     qid = _short_id()
     qdir = _quest_dir(qid)
     qdir.mkdir(parents=True)
-    _files_dir(qid).mkdir()
 
     meta = QuestMeta(id=qid, name=name, parent=parent_id)
     _save_meta(meta)
 
-    _state_path(qid).write_text(f"# {name}\n\n_No state recorded yet._\n")
-    _log_path(qid).write_text(f"# Session Log: {name}\n\n")
-
     if parent_id:
+        # Fork: copy parent's state, log, and files into the new quest
+        parent_dir = _quest_dir(parent_id)
+        for fname in ("state.md", "log.md"):
+            src = parent_dir / fname
+            if src.exists():
+                shutil.copy2(src, qdir / fname)
+        parent_files = _files_dir(parent_id)
+        if parent_files.exists() and any(parent_files.iterdir()):
+            shutil.copytree(parent_files, _files_dir(qid))
+        else:
+            _files_dir(qid).mkdir()
+
         parent = _load_meta(parent_id)
         parent.children.append(qid)
         _save_meta(parent)
+    else:
+        # Root quest: start fresh
+        _files_dir(qid).mkdir()
+        _state_path(qid).write_text(f"# {name}\n\n_No state recorded yet._\n")
+        _log_path(qid).write_text(f"# Session Log: {name}\n\n")
 
     return meta
 
@@ -168,6 +182,37 @@ def add_child(parent_id: str, child_id: str):
         _save_meta(parent)
 
 
+def delete_quest(quest_id: str):
+    """Delete a quest and remove it from its parent's children list."""
+    meta = _load_meta(quest_id)
+
+    # Recursively delete children first
+    for cid in list(meta.children):
+        try:
+            delete_quest(cid)
+        except FileNotFoundError:
+            pass
+
+    # Remove from parent's children list
+    if meta.parent:
+        try:
+            parent = _load_meta(meta.parent)
+            if quest_id in parent.children:
+                parent.children.remove(quest_id)
+                _save_meta(parent)
+        except FileNotFoundError:
+            pass
+
+    # Clear active if this was the active quest
+    if ACTIVE_FILE.exists() and ACTIVE_FILE.read_text().strip() == quest_id:
+        ACTIVE_FILE.write_text("")
+
+    # Remove the quest directory
+    qdir = _quest_dir(quest_id)
+    if qdir.exists():
+        shutil.rmtree(qdir)
+
+
 def update_meta(quest_id: str, **kwargs):
     meta = _load_meta(quest_id)
     for k, v in kwargs.items():
@@ -231,6 +276,29 @@ def quest_depth(quest_id: str) -> int:
 # --- Tree rendering ---
 
 
+def _relative_time(iso_str: str) -> str:
+    try:
+        dt = datetime.fromisoformat(iso_str)
+        now = datetime.now(timezone.utc)
+        delta = now - dt
+        seconds = int(delta.total_seconds())
+        if seconds < 60:
+            return "just now"
+        minutes = seconds // 60
+        if minutes < 60:
+            return f"{minutes}m ago"
+        hours = minutes // 60
+        if hours < 24:
+            return f"{hours}h ago"
+        days = hours // 24
+        if days < 30:
+            return f"{days}d ago"
+        months = days // 30
+        return f"{months}mo ago"
+    except (ValueError, TypeError):
+        return "?"
+
+
 def _build_tree_node(tree: Tree, quest_id: str, active_id: str | None):
     try:
         meta = _load_meta(quest_id)
@@ -241,7 +309,10 @@ def _build_tree_node(tree: Tree, quest_id: str, active_id: str | None):
     status_icon = "[green]●[/green]" if meta.status == "open" else "[dim]◌[/dim]"
     active_marker = " [bold yellow]← active[/bold yellow]" if meta.id == active_id else ""
     desc = f" [dim]— {meta.description}[/dim]" if meta.description else ""
-    label = f"{status_icon} [bold]{meta.name}[/bold] [dim]({meta.id})[/dim]{desc}{active_marker}"
+    created = _relative_time(meta.created)
+    updated = _relative_time(meta.updated)
+    timestamps = f" [dim]created {created}, updated {updated}[/dim]"
+    label = f"{status_icon} [bold]{meta.name}[/bold] [dim]({meta.id})[/dim]{desc}{active_marker}{timestamps}"
 
     if meta.children:
         branch = tree.add(label)

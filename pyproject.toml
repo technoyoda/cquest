@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "claude-quest"
+version = "0.1.0"
+description = "Longitudinal project context manager for Claude Code sessions"
+requires-python = ">=3.11"
+dependencies = [
+    "click>=8.0",
+    "pydantic>=2.0",
+    "rich>=13.0",
+]
+
+[project.scripts]
+claude-quest = "claude_quest.cli:cli"
+
+[tool.setuptools.packages.find]
+include = ["claude_quest*"]

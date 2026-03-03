@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import tarfile
 from pathlib import Path
 
 import click
@@ -21,24 +22,40 @@ def cli():
     pass
 
 
-@cli.command()
+@cli.command(context_settings={"ignore_unknown_options": True})
 @click.argument("name")
-def new(name: str):
-    """Create a new root quest and launch Claude."""
+@click.option("--system-prompt", "-s", default=None, help="Additional system prompt text.")
+@click.option("--prompt-mode", type=click.Choice(["append", "replace"]), default="append", help="How to inject the quest prompt: append to default or replace it.")
+@click.argument("extra_args", nargs=-1, type=click.UNPROCESSED)
+def new(name: str, system_prompt: str | None, prompt_mode: str, extra_args: tuple):
+    """Create a new root quest and launch Claude.
+
+    Extra args after -- are passed through to claude.
+    """
     if state.name_exists(name):
         console.print(f"[red]Quest named '{name}' already exists.[/red]")
         raise SystemExit(1)
     meta = state.create_quest(name)
     state.set_active(meta.id)
     console.print(f"[green]Created quest[/green] [bold]{meta.name}[/bold] [dim]({meta.id})[/dim]")
-    claude.launch_claude(meta.id)
+    claude.launch_claude(
+        meta.id,
+        extra_args=list(extra_args) if extra_args else None,
+        extra_system_prompt=system_prompt,
+        prompt_mode=prompt_mode,
+    )
 
 
 @cli.command(context_settings={"ignore_unknown_options": True})
 @click.argument("id_or_name", required=False)
+@click.option("--system-prompt", "-s", default=None, help="Additional system prompt text.")
+@click.option("--prompt-mode", type=click.Choice(["append", "replace"]), default="append", help="How to inject the quest prompt: append to default or replace it.")
 @click.argument("extra_args", nargs=-1, type=click.UNPROCESSED)
-def go(id_or_name: str | None, extra_args: tuple):
-    """Resume a quest and launch Claude. Pass extra args to claude after --."""
+def go(id_or_name: str | None, system_prompt: str | None, prompt_mode: str, extra_args: tuple):
+    """Resume a quest and launch Claude.
+
+    Extra args after -- are passed through to claude.
+    """
     if id_or_name is None:
         active = state.get_active()
         if active is None:
@@ -54,13 +71,24 @@ def go(id_or_name: str | None, extra_args: tuple):
 
     state.set_active(meta.id)
     console.print(f"[green]Resuming quest[/green] [bold]{meta.name}[/bold] [dim]({meta.id})[/dim]")
-    claude.launch_claude(meta.id, extra_args=list(extra_args) if extra_args else None)
+    claude.launch_claude(
+        meta.id,
+        extra_args=list(extra_args) if extra_args else None,
+        extra_system_prompt=system_prompt,
+        prompt_mode=prompt_mode,
+    )
 
 
-@cli.command()
+@cli.command(context_settings={"ignore_unknown_options": True})
 @click.option("--name", "-n", default=None, help="Name for the side quest (auto-generated if omitted).")
-def side(name: str | None):
-    """Fork a side quest from the active quest and launch Claude."""
+@click.option("--system-prompt", "-s", default=None, help="Additional system prompt text.")
+@click.option("--prompt-mode", type=click.Choice(["append", "replace"]), default="append", help="How to inject the quest prompt: append to default or replace it.")
+@click.argument("extra_args", nargs=-1, type=click.UNPROCESSED)
+def side(name: str | None, system_prompt: str | None, prompt_mode: str, extra_args: tuple):
+    """Fork a side quest from the active quest and launch Claude.
+
+    Extra args after -- are passed through to claude.
+    """
     active = state.get_active()
     if active is None:
         console.print("[red]No active quest. Create one with 'claude-quest new' first.[/red]")
@@ -76,7 +104,12 @@ def side(name: str | None):
         f"[green]Created side quest[/green] [bold]{meta.name}[/bold] [dim]({meta.id})[/dim]"
         f" from [bold]{active.name}[/bold]"
     )
-    claude.launch_claude(meta.id)
+    claude.launch_claude(
+        meta.id,
+        extra_args=list(extra_args) if extra_args else None,
+        extra_system_prompt=system_prompt,
+        prompt_mode=prompt_mode,
+    )
 
 
 @cli.command()
@@ -176,12 +209,13 @@ def list_cmd():
 
     for r in roots:
         marker = " [yellow]●[/yellow]" if r.id == active_id else ""
+        children_count = len(state.get_children(r.id))
         table.add_row(
             f"{r.name}{marker}",
             r.id,
             r.status,
             str(r.session_count),
-            str(len(r.children)),
+            str(children_count),
             r.description or "",
         )
     console.print(table)
@@ -304,3 +338,103 @@ def commit(state_content: str | None, log_entry: str | None, merge_id: str | Non
         except FileNotFoundError:
             console.print(f"[red]Child quest '{merge_id}' not found.[/red]")
             raise SystemExit(1)
+
+
+@cli.command("export")
+@click.argument("id_or_name", required=False)
+@click.option("--tree", "export_tree", is_flag=True, help="Export the full quest tree.")
+@click.option("--all", "export_all", is_flag=True, help="Export all quests.")
+@click.option("-o", "--output", default=None, help="Output file path (default: auto-generated).")
+def export_cmd(id_or_name: str | None, export_tree: bool, export_all: bool, output: str | None):
+    """Export quests as a .tar.gz archive."""
+    if export_all:
+        quests = state.list_all()
+        if not quests:
+            console.print("[red]No quests to export.[/red]")
+            raise SystemExit(1)
+        default_name = "quests-all.tar.gz"
+    elif id_or_name:
+        try:
+            meta = state.get_quest(id_or_name)
+        except FileNotFoundError:
+            console.print(f"[red]Quest '{id_or_name}' not found.[/red]")
+            raise SystemExit(1)
+
+        if export_tree:
+            quests = state.get_tree(meta.id)
+            default_name = f"quests-{meta.name}.tar.gz"
+        else:
+            quests = [meta]
+            default_name = f"quest-{meta.name}.tar.gz"
+    else:
+        console.print("[red]Specify a quest name/id, or use --all.[/red]")
+        raise SystemExit(1)
+
+    out_path = Path(output) if output else Path.cwd() / default_name
+
+    with tarfile.open(out_path, "w:gz") as tar:
+        for q in quests:
+            quest_dir = state.get_quest_dir(q.id)
+            if quest_dir.exists():
+                tar.add(quest_dir, arcname=f"quests/{q.id}")
+
+    console.print(f"[green]Exported {len(quests)} quest(s)[/green] → [dim]{out_path}[/dim]")
+    for q in quests:
+        label = "[red](orphan)[/red] " if state.is_orphan(q) else ""
+        console.print(f"  {label}[bold]{q.name}[/bold] [dim]({q.id})[/dim]")
+
+
+@cli.command("import")
+@click.argument("archive", type=click.Path(exists=True))
+@click.option("--force", "-f", is_flag=True, help="Overwrite existing quests on ID collision.")
+def import_cmd(archive: str, force: bool):
+    """Import quests from a .tar.gz archive."""
+    archive_path = Path(archive)
+
+    with tarfile.open(archive_path, "r:gz") as tar:
+        # Validate structure: expect quests/<id>/meta.json
+        members = tar.getnames()
+        quest_ids = set()
+        for name in members:
+            parts = name.split("/")
+            if len(parts) >= 2 and parts[0] == "quests":
+                quest_ids.add(parts[1])
+
+        if not quest_ids:
+            console.print("[red]No quests found in archive.[/red]")
+            raise SystemExit(1)
+
+        # Check for collisions
+        collisions = []
+        for qid in quest_ids:
+            if state.get_quest_dir(qid).exists():
+                collisions.append(qid)
+
+        if collisions and not force:
+            console.print(f"[yellow]Warning:[/yellow] {len(collisions)} quest(s) already exist locally:")
+            for qid in collisions:
+                try:
+                    existing = state.get_quest(qid)
+                    console.print(f"  [bold]{existing.name}[/bold] [dim]({qid})[/dim]")
+                except FileNotFoundError:
+                    console.print(f"  [dim]({qid})[/dim]")
+            console.print("Use [bold]--force[/bold] to overwrite.")
+            raise SystemExit(1)
+
+        # Extract
+        state._ensure_root()
+        tar.extractall(path=state.QUESTS_ROOT)
+
+    # Report what was imported
+    imported = []
+    for qid in quest_ids:
+        try:
+            m = state.get_quest(qid)
+            imported.append(m)
+        except FileNotFoundError:
+            pass
+
+    console.print(f"[green]Imported {len(imported)} quest(s)[/green] from [dim]{archive_path.name}[/dim]")
+    for q in imported:
+        label = "[red](orphan)[/red] " if state.is_orphan(q) else ""
+        console.print(f"  {label}[bold]{q.name}[/bold] [dim]({q.id})[/dim]")

@@ -143,9 +143,35 @@ A read-only snapshot is at `{local_dir_name}/` in your working directory:
     return prompt
 
 
-def launch_claude(quest_id: str, extra_args: list[str] | None = None):
+def launch_claude(
+    quest_id: str,
+    extra_args: list[str] | None = None,
+    extra_system_prompt: str | None = None,
+    prompt_mode: str = "append",
+):
+    from rich.console import Console
+    console = Console()
+
     meta = state.get_quest(quest_id)
     cwd = Path.cwd()
+
+    if meta.created_dir and str(cwd) != meta.created_dir:
+        console.print(
+            f"[yellow]Warning:[/yellow] Quest [bold]{meta.name}[/bold] was created in "
+            f"[dim]{meta.created_dir}[/dim]\n"
+            f"         You are launching from [dim]{cwd}[/dim]"
+        )
+
+    # Gate against system prompt args in passthrough — quest manages these
+    BLOCKED_ARGS = {"--append-system-prompt", "--system-prompt", "-s"}
+    if extra_args:
+        for arg in extra_args:
+            if arg in BLOCKED_ARGS:
+                console.print(
+                    f"[red]Cannot pass '{arg}' as a claude flag.[/red]\n"
+                    f"Use [bold]-s / --system-prompt[/bold] on the claude-quest command instead."
+                )
+                raise SystemExit(1)
 
     state.increment_session(quest_id)
 
@@ -153,6 +179,8 @@ def launch_claude(quest_id: str, extra_args: list[str] | None = None):
     local_dir = _stage_quest(quest_id, cwd)
 
     prompt = build_system_prompt(quest_id, local_dir_name)
+    if extra_system_prompt:
+        prompt += f"\n{extra_system_prompt}"
 
     env = os.environ.copy()
     env["CLAUDE_QUEST_ID"] = meta.id
@@ -161,7 +189,8 @@ def launch_claude(quest_id: str, extra_args: list[str] | None = None):
     env["CLAUDE_QUEST_NAME"] = meta.name
     env["CLAUDE_QUEST_ROOT"] = str(state.QUESTS_ROOT)
 
-    cmd = ["claude", "--append-system-prompt", prompt]
+    prompt_flag = "--system-prompt" if prompt_mode == "replace" else "--append-system-prompt"
+    cmd = ["claude", prompt_flag, prompt]
     if extra_args:
         cmd.extend(extra_args)
 

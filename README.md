@@ -33,27 +33,40 @@ claude-quest go build-rl-agent
 # Resume with extra flags passed through to claude
 claude-quest go build-rl-agent -- --model sonnet
 
+# Resume with an additional system prompt
+claude-quest go build-rl-agent -s "Focus on the reward function today"
+
 # Fork a side quest from the active quest
 claude-quest side
 claude-quest side -n "reward-shaping"
+
+# Combine system prompt and passthrough flags
+claude-quest new "my-project" -s "You are an expert in Rust" -- --model sonnet
+claude-quest side -n "experiment" -s "Try a different approach" -- --allowedTools "Bash,Read"
 ```
 
 ## Commands
 
 ### Session launchers
 
+All session launchers support:
+- `-s / --system-prompt "..."` — append additional text to the system prompt
+- `-- <flags>` — pass through extra flags to the underlying `claude` command
+
 | Command | Description |
 |---|---|
-| `claude-quest new <name>` | Create a root quest, set active, launch Claude |
-| `claude-quest go [name\|id] [-- claude-flags]` | Resume a quest (default: active), launch Claude |
-| `claude-quest side [-n name]` | Fork from active quest, launch Claude |
+| `claude-quest new <name> [-s sytem-prompt] [-- claude-flags]` | Create a root quest, set active, launch Claude |
+| `claude-quest go [name\|id] [-s sytem-prompt] [-- claude-flags]` | Resume a quest (default: active), launch Claude |
+| `claude-quest side [-n name] [-s sytem-prompt] [-- claude-flags]` | Fork from active quest, launch Claude |
+
+*-s* will add to the SYSTEM PROMPT given to claude. The state saved on `commit` commands run by claude is also adding to the system prompt.
 
 ### Read operations
 
 | Command | Description |
 |---|---|
 | `claude-quest status [name\|id]` | Show quest details (default: active) |
-| `claude-quest tree [name\|id]` | Print quest tree with Rich formatting |
+| `claude-quest tree [name\|id]` | Print quest tree with timestamps |
 | `claude-quest list` | List all root quests |
 | `claude-quest log [name\|id]` | Show session log |
 | `claude-quest describe [name\|id]` | Show quest description |
@@ -68,6 +81,27 @@ claude-quest side -n "reward-shaping"
 | `claude-quest attach <file> [-q id]` | Copy file into quest's files/ directory |
 | `claude-quest rename <name\|id> <new-name>` | Rename any quest |
 | `claude-quest describe <name\|id> --set "..."` | Set quest description |
+| `claude-quest delete <name\|id> [-f]` | Delete a quest and its children |
+
+### Export / Import
+
+| Command | Description |
+|---|---|
+| `claude-quest export <name\|id>` | Export a single quest as `.tar.gz` |
+| `claude-quest export <name\|id> --tree` | Export the full quest tree (all quests sharing the same root) |
+| `claude-quest export --all` | Export all quests |
+| `claude-quest import <archive.tar.gz>` | Import quests from archive |
+| `claude-quest import <archive.tar.gz> -f` | Import and overwrite on ID collision |
+
+```bash
+# Export a tree to share with someone
+claude-quest export my-project --tree -o my-project.tar.gz
+
+# Import on another machine
+claude-quest import my-project.tar.gz
+```
+
+Exported quests are self-contained. Lineage (`root`/`parent` references) survives export/import because the whole family travels together. Importing a single quest without its parent creates an orphan — fully usable, just labeled `(orphan)` in tree/list output.
 
 ## How It Works
 
@@ -75,7 +109,7 @@ claude-quest side -n "reward-shaping"
 
 ```
 1. STAGE    .quest-<name>/ snapshot into CWD (read-only context for Claude)
-2. LAUNCH   claude --append-system-prompt <quest context + instructions>
+2. LAUNCH   claude --append-system-prompt <quest context + optional extra prompt>
 3. SESSION  Claude reads .quest-<name>/, mutates via `claude-quest` CLI commands
 4. EXIT     .quest-<name>/ wiped from CWD
 ```
@@ -115,7 +149,7 @@ The snapshot is a read-only dump of quest state so Claude never leaves the user'
 
 ### In-session operations
 
-Claude's system prompt instructs it to use CLI commands for all mutations:
+Claude's system prompt provides quest context as passive background information. All mutations are user-initiated:
 
 - **Commit state**: `claude-quest commit --state "..." --log "..."`
 - **Attach files**: `claude-quest attach <file>`
@@ -137,7 +171,11 @@ claude-quest tree
     └── ● experiment-b (g7h8i9)
 ```
 
-Side quests inherit nothing — they start fresh but are linked in the tree. Merge a side quest back by reading its state from the snapshot and committing a synthesized version.
+Side quests fork the parent's `state.md`, `log.md`, and `files/` — they pick up where the parent left off. Merge a side quest back by reading its state from the snapshot and committing a synthesized version.
+
+### Name uniqueness
+
+Quest names must be unique. `new`, `side`, and `rename` will reject duplicate names.
 
 ## meta.json schema
 

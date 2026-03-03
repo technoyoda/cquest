@@ -59,6 +59,11 @@ def go(id_or_name: str | None, system_prompt: str | None, prompt_mode: str, max_
 
     Extra args after -- are passed through to claude.
     """
+    # If id_or_name looks like a flag, it's a passthrough arg, not a quest name
+    if id_or_name is not None and id_or_name.startswith("-"):
+        extra_args = (id_or_name,) + extra_args
+        id_or_name = None
+
     if id_or_name is None:
         active = state.get_active()
         if active is None:

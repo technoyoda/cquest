@@ -127,21 +127,26 @@ A read-only snapshot is at `{local_dir_name}/` in your working directory:
 
 ## Quest Commands Reference
 
-**NEVER run these unless the user explicitly asks you to.** Do not auto-commit, auto-attach, or auto-merge.
+**NEVER run these unless the user explicitly asks you to.** Do not auto-commit, auto-attach, auto-merge, or auto-dump.
 
 **Before any commit:** Always read the current `{local_dir_name}/state.md` and `{local_dir_name}/log.md` first. Then draft what you plan to write and show it to the user for confirmation before running the commit command. Commits are versioned — every commit creates a permanent forward entry in history.
+
+**Dumped snapshots are temporary.** When you dump another quest's content for reference, clean up the `.quest-<name>/` directory (rm -rf) once you're done reading it. Don't leave dumped snapshots lying around.
 
 | Command | What it does |
 |---|---|
 | `claude-quest commit --state "..."` | Overwrite state.md |
 | `claude-quest commit --log "..."` | Append to log.md |
-| `claude-quest commit --state "..." --merge <id>` | Merge a side quest |
+| `claude-quest merge <id>` | Mark a quest as merged |
+| `claude-quest dump <id>` | Dump a quest's contents into CWD for reading |
+| `claude-quest dump <id> --state --log` | Dump only specific files |
 | `claude-quest attach <file>` | Save a file to quest storage |
 | `claude-quest rename {meta.id} "name"` | Rename this quest |
 | `claude-quest describe {meta.id} --set "desc"` | Set description |
 | `claude-quest tree` | Show quest tree |
 | `claude-quest status` | Show quest details |
 | `claude-quest history` | Show version history |
+| `claude-quest show <hash>` | Inspect contents at a specific version |
 | `claude-quest restore <hash>` | Restore to a specific version (forward commit) |
 """
     return prompt

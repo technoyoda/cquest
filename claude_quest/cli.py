@@ -323,9 +323,8 @@ def attach(file: str, quest: str | None):
 @cli.command()
 @click.option("--state", "state_content", default=None, help="New state.md content.")
 @click.option("--log", "log_entry", default=None, help="Entry to append to log.md.")
-@click.option("--merge", "merge_id", default=None, help="Mark a child quest as merged.")
 @click.option("--quest", "-q", default=None, help="Quest ID (reads CLAUDE_QUEST_ID from env if omitted).")
-def commit(state_content: str | None, log_entry: str | None, merge_id: str | None, quest: str | None):
+def commit(state_content: str | None, log_entry: str | None, quest: str | None):
     """Persist quest state changes to the global store.
 
     Called by Claude during a session to save progress. Writes directly
@@ -342,8 +341,8 @@ def commit(state_content: str | None, log_entry: str | None, merge_id: str | Non
         console.print(f"[red]Quest '{quest_id}' not found.[/red]")
         raise SystemExit(1)
 
-    if state_content is None and log_entry is None and merge_id is None:
-        console.print("[red]Nothing to commit. Use --state, --log, or --merge.[/red]")
+    if state_content is None and log_entry is None:
+        console.print("[red]Nothing to commit. Use --state or --log.[/red]")
         raise SystemExit(1)
 
     if state_content is not None:
@@ -354,41 +353,113 @@ def commit(state_content: str | None, log_entry: str | None, merge_id: str | Non
         state.append_log(quest_id, log_entry)
         console.print(f"[green]Appended log entry for[/green] [bold]{meta.name}[/bold]")
 
-    if merge_id is not None:
-        try:
-            child = state.get_quest(merge_id)
-            state.update_meta(child.id, status="merged")
-            console.print(f"[green]Marked[/green] [bold]{child.name}[/bold] [dim]({child.id})[/dim] as merged")
-        except FileNotFoundError:
-            console.print(f"[red]Child quest '{merge_id}' not found.[/red]")
-            raise SystemExit(1)
-
     # Implicit git commit — history moves forward
     parts = []
     if state_content is not None:
         parts.append("state")
     if log_entry is not None:
         parts.append("log")
-    if merge_id is not None:
-        parts.append(f"merge {merge_id}")
     state.git_commit(quest_id, f"commit: {', '.join(parts)}")
 
 
 @cli.command()
-@click.argument("id_or_name", required=False)
+@click.argument("id_or_name")
+def merge(id_or_name: str):
+    """Mark a quest as merged."""
+    try:
+        meta = state.get_quest(id_or_name)
+    except FileNotFoundError:
+        console.print(f"[red]Quest '{id_or_name}' not found.[/red]")
+        raise SystemExit(1)
+
+    if meta.status == "merged":
+        console.print(f"[yellow]{meta.name}[/yellow] [dim]({meta.id})[/dim] is already merged.")
+        return
+
+    state.update_meta(meta.id, status="merged")
+    console.print(f"[green]Merged[/green] [bold]{meta.name}[/bold] [dim]({meta.id})[/dim]")
+
+
+@cli.command()
+@click.argument("id_or_name")
+@click.option("--state", "dump_state", is_flag=True, help="Dump state.md.")
+@click.option("--log", "dump_log", is_flag=True, help="Dump log.md.")
+@click.option("--meta", "dump_meta", is_flag=True, help="Dump meta.json.")
+@click.option("--files", "dump_files", is_flag=True, help="Dump files/ directory.")
+@click.option("-o", "--output", default=None, help="Output directory (default: .quest-<name>/ in CWD).")
+def dump(id_or_name: str, dump_state: bool, dump_log: bool, dump_meta: bool, dump_files: bool, output: str | None):
+    """Dump a quest's contents into a directory for reading.
+
+    Creates .quest-<name>/ in the current directory by default, or at
+    the path given by -o. If no filters are given, dumps everything.
+    Use filters to pick specific files.
+
+    Clean up the dumped directory when you're done with it.
+    """
+    try:
+        meta = state.get_quest(id_or_name)
+    except FileNotFoundError:
+        console.print(f"[red]Quest '{id_or_name}' not found.[/red]")
+        raise SystemExit(1)
+
+    # No flags = dump everything
+    dump_all = not (dump_state or dump_log or dump_meta or dump_files)
+
+    quest_dir = state.get_quest_dir(meta.id)
+    local = Path(output) if output else Path.cwd() / f".quest-{meta.name}"
+    local.mkdir(parents=True, exist_ok=True)
+
+    dumped = []
+    if dump_all or dump_meta:
+        src = quest_dir / "meta.json"
+        if src.exists():
+            shutil.copy2(src, local / "meta.json")
+            dumped.append("meta.json")
+
+    if dump_all or dump_state:
+        src = quest_dir / "state.md"
+        if src.exists():
+            shutil.copy2(src, local / "state.md")
+            dumped.append("state.md")
+
+    if dump_all or dump_log:
+        src = quest_dir / "log.md"
+        if src.exists():
+            shutil.copy2(src, local / "log.md")
+            dumped.append("log.md")
+
+    if dump_all or dump_files:
+        src_files = state.get_files_dir(meta.id)
+        dst_files = local / "files"
+        if src_files.exists() and any(src_files.iterdir()):
+            if dst_files.exists():
+                shutil.rmtree(dst_files)
+            shutil.copytree(src_files, dst_files)
+            dumped.append("files/")
+
+    console.print(
+        f"[green]Dumped[/green] [bold]{meta.name}[/bold] [dim]({meta.id})[/dim] → [dim]{local}[/dim]"
+    )
+    for f in dumped:
+        console.print(f"  {f}")
+
+
+@cli.command()
+@click.option("--quest", "-q", default=None, help="Quest name or ID (reads CLAUDE_QUEST_ID from env if omitted).")
 @click.option("--limit", "-n", default=20, help="Number of entries to show.")
-def history(id_or_name: str | None, limit: int):
+def history(quest: str | None, limit: int):
     """Show version history for a quest."""
-    if id_or_name:
+    quest_ref = quest or os.environ.get("CLAUDE_QUEST_ID")
+    if quest_ref:
         try:
-            meta = state.get_quest(id_or_name)
+            meta = state.get_quest(quest_ref)
         except FileNotFoundError:
-            console.print(f"[red]Quest '{id_or_name}' not found.[/red]")
+            console.print(f"[red]Quest '{quest_ref}' not found.[/red]")
             raise SystemExit(1)
     else:
         meta = state.get_active()
         if meta is None:
-            console.print("[red]No active quest.[/red]")
+            console.print("[red]No quest specified. Use --quest, set CLAUDE_QUEST_ID, or have an active quest.[/red]")
             raise SystemExit(1)
 
     entries = state.git_history(meta.id, limit=limit)

@@ -78,7 +78,9 @@ All session launchers support:
 |---|---|
 | `claude-quest commit --state "..."` | Persist state.md to global store |
 | `claude-quest commit --log "..."` | Append entry to log.md |
-| `claude-quest commit --merge <id>` | Mark a child quest as merged |
+| `claude-quest merge <name\|id>` | Mark a quest as merged |
+| `claude-quest dump <name\|id>` | Dump quest contents into CWD for reading |
+| `claude-quest dump <name\|id> --state --log` | Dump only specific files |
 | `claude-quest attach <file> [-q id]` | Copy file into quest's files/ directory |
 | `claude-quest rename <name\|id> <new-name>` | Rename any quest |
 | `claude-quest describe <name\|id> --set "..."` | Set quest description |
@@ -155,7 +157,8 @@ Claude's system prompt provides quest context as passive background information.
 
 - **Commit state**: `claude-quest commit --state "..." --log "..."`
 - **Attach files**: `claude-quest attach <file>`
-- **Merge side quest**: `claude-quest commit --state "...merged..." --merge <child-id>`
+- **Dump another quest**: `claude-quest dump <name|id>` — copies into CWD for reading, clean up when done
+- **Merge side quest**: Dump it, synthesize state, commit, then `claude-quest merge <child-id>`
 - **Rename/describe**: `claude-quest rename`, `claude-quest describe --set`
 
 Environment variables (`CLAUDE_QUEST_ID`, `CLAUDE_QUEST_NAME`, etc.) are set automatically so commands like `claude-quest commit` and `claude-quest attach` know which quest to target without arguments.

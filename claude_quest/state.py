@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import shutil
+import subprocess
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -109,6 +110,9 @@ def create_quest(name: str, parent_id: str | None = None) -> QuestMeta:
         _files_dir(qid).mkdir()
         _state_path(qid).write_text(f"# {name}\n\n_No state recorded yet._\n")
         _log_path(qid).write_text(f"# Session Log: {name}\n\n")
+
+    # Initialize git repo (fresh history for every quest, including forks)
+    git_init(qid)
 
     return meta
 
@@ -290,6 +294,105 @@ def get_quest_dir(quest_id: str) -> Path:
 
 def get_files_dir(quest_id: str) -> Path:
     return _files_dir(quest_id)
+
+
+# --- Git versioning ---
+
+
+def _git(quest_id: str, *args: str, check: bool = True) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        ["git", *args],
+        cwd=_quest_dir(quest_id),
+        capture_output=True,
+        text=True,
+        check=check,
+    )
+
+
+def _has_git(quest_id: str) -> bool:
+    return (_quest_dir(quest_id) / ".git").exists()
+
+
+def git_init(quest_id: str):
+    """Initialize a git repo in the quest directory."""
+    qdir = _quest_dir(quest_id)
+    if (qdir / ".git").exists():
+        return
+    _git(quest_id, "init", "-q")
+    _git(quest_id, "add", "-A")
+    _git(quest_id, "commit", "-q", "-m", "quest created")
+
+
+def git_commit(quest_id: str, message: str):
+    """Stage all changes and commit. No-op if nothing changed."""
+    if not _has_git(quest_id):
+        git_init(quest_id)
+    _git(quest_id, "add", "-A")
+    # Check if there's anything to commit
+    result = _git(quest_id, "diff", "--cached", "--quiet", check=False)
+    if result.returncode == 0:
+        return  # nothing staged
+    _git(quest_id, "commit", "-q", "-m", message)
+
+
+def git_history(quest_id: str, limit: int = 20) -> list[dict]:
+    """Return recent commit history as a list of {hash, date, message}."""
+    if not _has_git(quest_id):
+        return []
+    result = _git(
+        quest_id, "log",
+        f"--max-count={limit}",
+        "--format=%H|%aI|%s",
+        check=False,
+    )
+    if result.returncode != 0 or not result.stdout.strip():
+        return []
+    entries = []
+    for line in result.stdout.strip().split("\n"):
+        parts = line.split("|", 2)
+        if len(parts) == 3:
+            entries.append({"hash": parts[0], "date": parts[1], "message": parts[2]})
+    return entries
+
+
+def git_show(quest_id: str, commit_hash: str, filename: str) -> str | None:
+    """Show the contents of a file at a specific commit.
+
+    Returns file contents, or None if the commit/file doesn't exist.
+    """
+    if not _has_git(quest_id):
+        return None
+    result = _git(quest_id, "show", f"{commit_hash}:{filename}", check=False)
+    if result.returncode != 0:
+        return None
+    return result.stdout
+
+
+def git_restore(quest_id: str, commit_hash: str) -> bool:
+    """Restore quest files to the state at a given commit.
+
+    Wipes current files and writes the version from commit_hash,
+    then creates a NEW forward commit. History only moves forward.
+
+    Returns True if restore succeeded, False otherwise.
+    """
+    if not _has_git(quest_id):
+        return False
+    # Validate the commit exists
+    result = _git(quest_id, "cat-file", "-t", commit_hash, check=False)
+    if result.returncode != 0 or result.stdout.strip() != "commit":
+        return False
+    # Wipe tracked files, then checkout the target version's content
+    _git(quest_id, "rm", "-rf", "--quiet", ".", check=False)
+    _git(quest_id, "checkout", commit_hash, "--", ".")
+    _git(quest_id, "add", "-A")
+    # Only commit if there's actually a diff
+    diff = _git(quest_id, "diff", "--cached", "--quiet", check=False)
+    if diff.returncode == 0:
+        return False  # target version is identical to current
+    short = commit_hash[:7]
+    _git(quest_id, "commit", "-q", "-m", f"restore: reverted to {short}")
+    return True
 
 
 def quest_depth(quest_id: str) -> int:

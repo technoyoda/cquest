@@ -221,6 +221,30 @@ def list_cmd():
     console.print(table)
 
 
+@cli.command("init-git")
+def init_git():
+    """Initialize git versioning for all quests that don't have it yet."""
+    all_quests = state.list_all()
+    if not all_quests:
+        console.print("[dim]No quests found.[/dim]")
+        return
+
+    initialized = 0
+    skipped = 0
+    for q in all_quests:
+        if state._has_git(q.id):
+            skipped += 1
+        else:
+            state.git_init(q.id)
+            console.print(f"  [green]Initialized[/green] [bold]{q.name}[/bold] [dim]({q.id})[/dim]")
+            initialized += 1
+
+    if initialized == 0:
+        console.print(f"[dim]All {skipped} quest(s) already have git.[/dim]")
+    else:
+        console.print(f"[green]Initialized {initialized} quest(s)[/green], {skipped} already had git.")
+
+
 @cli.command()
 @click.argument("id_or_name", required=False)
 def log(id_or_name: str | None):
@@ -338,6 +362,130 @@ def commit(state_content: str | None, log_entry: str | None, merge_id: str | Non
         except FileNotFoundError:
             console.print(f"[red]Child quest '{merge_id}' not found.[/red]")
             raise SystemExit(1)
+
+    # Implicit git commit — history moves forward
+    parts = []
+    if state_content is not None:
+        parts.append("state")
+    if log_entry is not None:
+        parts.append("log")
+    if merge_id is not None:
+        parts.append(f"merge {merge_id}")
+    state.git_commit(quest_id, f"commit: {', '.join(parts)}")
+
+
+@cli.command()
+@click.argument("id_or_name", required=False)
+@click.option("--limit", "-n", default=20, help="Number of entries to show.")
+def history(id_or_name: str | None, limit: int):
+    """Show version history for a quest."""
+    if id_or_name:
+        try:
+            meta = state.get_quest(id_or_name)
+        except FileNotFoundError:
+            console.print(f"[red]Quest '{id_or_name}' not found.[/red]")
+            raise SystemExit(1)
+    else:
+        meta = state.get_active()
+        if meta is None:
+            console.print("[red]No active quest.[/red]")
+            raise SystemExit(1)
+
+    entries = state.git_history(meta.id, limit=limit)
+    if not entries:
+        console.print("[dim]No history yet.[/dim]")
+        return
+
+    table = Table(show_header=True)
+    table.add_column("Hash", style="dim", width=7)
+    table.add_column("Date", style="dim")
+    table.add_column("Message")
+
+    for e in entries:
+        table.add_row(e["hash"][:7], e["date"][:19], e["message"])
+    console.print(f"[bold]{meta.name}[/bold] [dim]({meta.id})[/dim] — version history")
+    console.print(table)
+
+
+@cli.command()
+@click.argument("commit_hash")
+@click.option("--quest", "-q", default=None, help="Quest ID (reads CLAUDE_QUEST_ID from env if omitted).")
+@click.option("--file", "-f", "filename", default=None, help="Show a specific file (default: state.md and log.md).")
+def show(commit_hash: str, quest: str | None, filename: str | None):
+    """Show quest contents at a specific version."""
+    quest_id = quest or os.environ.get("CLAUDE_QUEST_ID")
+    if not quest_id:
+        active = state.get_active()
+        if active is None:
+            console.print("[red]No quest specified. Use --quest, set CLAUDE_QUEST_ID, or have an active quest.[/red]")
+            raise SystemExit(1)
+        quest_id = active.id
+
+    try:
+        meta = state.get_quest(quest_id)
+    except FileNotFoundError:
+        console.print(f"[red]Quest '{quest_id}' not found.[/red]")
+        raise SystemExit(1)
+
+    if filename:
+        content = state.git_show(quest_id, commit_hash, filename)
+        if content is None:
+            console.print(f"[red]File '{filename}' not found at {commit_hash[:7]}.[/red]")
+            raise SystemExit(1)
+        console.print(content)
+    else:
+        console.print(f"[bold]{meta.name}[/bold] [dim]({meta.id})[/dim] @ [dim]{commit_hash[:7]}[/dim]\n")
+        for fname in ("state.md", "log.md"):
+            content = state.git_show(quest_id, commit_hash, fname)
+            if content is not None:
+                console.print(f"[bold]── {fname} ──[/bold]")
+                console.print(content)
+            else:
+                console.print(f"[bold]── {fname} ──[/bold]")
+                console.print("[dim](not present)[/dim]")
+
+
+@cli.command()
+@click.argument("commit_hash")
+@click.option("--quest", "-q", default=None, help="Quest ID (reads CLAUDE_QUEST_ID from env if omitted).")
+@click.option("--force", "-f", is_flag=True, help="Skip confirmation prompt.")
+def restore(commit_hash: str, quest: str | None, force: bool):
+    """Restore quest state to a specific version. History moves forward."""
+    quest_id = quest or os.environ.get("CLAUDE_QUEST_ID")
+    if not quest_id:
+        active = state.get_active()
+        if active is None:
+            console.print("[red]No quest specified. Use --quest, set CLAUDE_QUEST_ID, or have an active quest.[/red]")
+            raise SystemExit(1)
+        quest_id = active.id
+
+    try:
+        meta = state.get_quest(quest_id)
+    except FileNotFoundError:
+        console.print(f"[red]Quest '{quest_id}' not found.[/red]")
+        raise SystemExit(1)
+
+    if not force:
+        msg = (
+            f"Restore [bold]{meta.name}[/bold] [dim]({meta.id})[/dim] "
+            f"to version [dim]{commit_hash[:7]}[/dim]? "
+            f"This creates a new forward commit. [dim](y/N)[/dim] "
+        )
+        answer = console.input(msg).strip().lower()
+        if answer not in ("y", "yes"):
+            console.print("[dim]Cancelled.[/dim]")
+            return
+
+    ok = state.git_restore(quest_id, commit_hash)
+    if ok:
+        console.print(
+            f"[green]Restored[/green] [bold]{meta.name}[/bold] to version [dim]{commit_hash[:7]}[/dim]"
+        )
+    else:
+        console.print(
+            f"[yellow]Nothing to restore[/yellow] — version [dim]{commit_hash[:7]}[/dim] "
+            f"is identical to current state, or commit not found."
+        )
 
 
 @cli.command("export")

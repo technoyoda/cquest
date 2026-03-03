@@ -70,6 +70,7 @@ All session launchers support:
 | `claude-quest list` | List all root quests |
 | `claude-quest log [name\|id]` | Show session log |
 | `claude-quest describe [name\|id]` | Show quest description |
+| `claude-quest history [name\|id] [-n 20]` | Show version history |
 
 ### Write operations
 
@@ -82,6 +83,7 @@ All session launchers support:
 | `claude-quest rename <name\|id> <new-name>` | Rename any quest |
 | `claude-quest describe <name\|id> --set "..."` | Set quest description |
 | `claude-quest delete <name\|id> [-f]` | Delete a quest and its children |
+| `claude-quest restore <commit-hash> [-q id] [-f]` | Restore quest to a specific version (forward commit) |
 
 ### Export / Import
 
@@ -177,6 +179,20 @@ Side quests fork the parent's `state.md`, `log.md`, and `files/` — they pick u
 
 Quest names must be unique. `new`, `side`, and `rename` will reject duplicate names.
 
+### Version history
+
+Every `claude-quest commit` automatically creates a git commit inside the quest directory (`~/.quests/quests/<id>/.git`). History only moves forward — no rewrites, no rebase.
+
+```bash
+# See version history
+claude-quest history my-project
+
+# Restore to a previous version (creates a new forward commit)
+claude-quest restore abc1234 -q my-project-id
+```
+
+Side quests start with a fresh git history — they don't inherit the parent's commits.
+
 ## meta.json schema
 
 ```json
@@ -184,8 +200,9 @@ Quest names must be unique. `new`, `side`, and `rename` will reject duplicate na
   "id": "abc123",
   "name": "build-rl-agent",
   "description": "Training a small RL-based code agent",
+  "root": "abc123",
   "parent": null,
-  "children": ["d4e5f6", "g7h8i9"],
+  "created_dir": "/home/user/projects",
   "status": "open",
   "created": "2026-03-02T10:00:00+00:00",
   "updated": "2026-03-02T14:30:00+00:00",

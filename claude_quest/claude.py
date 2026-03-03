@@ -129,6 +129,8 @@ A read-only snapshot is at `{local_dir_name}/` in your working directory:
 
 **NEVER run these unless the user explicitly asks you to.** Do not auto-commit, auto-attach, or auto-merge.
 
+**Before any commit:** Always read the current `{local_dir_name}/state.md` and `{local_dir_name}/log.md` first. Then draft what you plan to write and show it to the user for confirmation before running the commit command. Commits are versioned — every commit creates a permanent forward entry in history.
+
 | Command | What it does |
 |---|---|
 | `claude-quest commit --state "..."` | Overwrite state.md |
@@ -139,6 +141,8 @@ A read-only snapshot is at `{local_dir_name}/` in your working directory:
 | `claude-quest describe {meta.id} --set "desc"` | Set description |
 | `claude-quest tree` | Show quest tree |
 | `claude-quest status` | Show quest details |
+| `claude-quest history` | Show version history |
+| `claude-quest restore <hash>` | Restore to a specific version (forward commit) |
 """
     return prompt
 

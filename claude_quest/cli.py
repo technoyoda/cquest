@@ -222,7 +222,7 @@ def delete(id_or_name: str, force: bool):
 
 @cli.command("list")
 def list_cmd():
-    """List all root quests."""
+    """List all quests (roots with their side quests)."""
     roots = state.list_roots()
     if not roots:
         console.print("[dim]No quests found.[/dim]")
@@ -231,25 +231,38 @@ def list_cmd():
     active = state.get_active()
     active_id = active.id if active else None
 
-    table = Table(show_header=True)
-    table.add_column("Name", style="bold")
-    table.add_column("ID", style="dim")
-    table.add_column("Status")
-    table.add_column("Sessions", justify="right")
-    table.add_column("Children", justify="right")
-    table.add_column("Description", style="dim")
+    table = Table(show_header=True, padding=(0, 1, 1, 1))
+    table.add_column("Name", style="bold", max_width=40)
+    table.add_column("ID", style="dim", no_wrap=True)
+    table.add_column("Parent", style="dim", no_wrap=True)
+    table.add_column("Status", no_wrap=True)
+    table.add_column("Sess", justify="right", no_wrap=True)
+
+    def _add_quest_row(quest: state.QuestMeta):
+        marker = " [yellow]●[/yellow]" if quest.id == active_id else ""
+        parent_name = ""
+        if quest.parent:
+            try:
+                p = state.get_quest(quest.parent)
+                parent_name = p.name
+            except FileNotFoundError:
+                parent_name = f"{quest.parent} (missing)"
+        name_cell = f"{quest.name}{marker}"
+        if quest.description:
+            desc = quest.description if len(quest.description) <= 38 else quest.description[:35] + "..."
+            name_cell += f"\n[dim]{desc}[/dim]"
+        table.add_row(
+            name_cell,
+            quest.id,
+            parent_name,
+            quest.status,
+            str(quest.session_count),
+        )
+        for child in state.get_children(quest.id):
+            _add_quest_row(child)
 
     for r in roots:
-        marker = " [yellow]●[/yellow]" if r.id == active_id else ""
-        children_count = len(state.get_children(r.id))
-        table.add_row(
-            f"{r.name}{marker}",
-            r.id,
-            r.status,
-            str(r.session_count),
-            str(children_count),
-            r.description or "",
-        )
+        _add_quest_row(r)
     console.print(table)
 
 

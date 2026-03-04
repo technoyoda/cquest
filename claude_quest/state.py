@@ -480,33 +480,65 @@ def render_tree(root_id: str | None = None):
 
 
 def render_status(meta: QuestMeta):
+    from rich.panel import Panel
+    from rich.table import Table as RichTable
+    from rich.columns import Columns
+    from rich.text import Text
+
     console = Console()
     active = get_active()
     is_active = active and active.id == meta.id
     children = get_children(meta.id)
 
-    console.print(f"[bold]{meta.name}[/bold] [dim]({meta.id})[/dim]")
-    if is_active:
-        console.print("[yellow]  Active quest[/yellow]")
-    console.print(f"  Status: {meta.status}")
-    if meta.description:
-        console.print(f"  Description: {meta.description}")
+    # Key-value grid
+    grid = RichTable.grid(padding=(0, 2))
+    grid.add_column(style="bold")
+    grid.add_column()
+
+    status_str = "[green]open[/green]" if meta.status == "open" else f"[dim]{meta.status}[/dim]"
+    grid.add_row("Status", status_str)
+    grid.add_row("ID", f"[dim]{meta.id}[/dim]")
+
     if meta.parent:
         try:
             parent = _load_meta(meta.parent)
-            console.print(f"  Parent: {parent.name} ({parent.id})")
+            grid.add_row("Parent", f"{parent.name} [dim]({parent.id})[/dim]")
         except FileNotFoundError:
-            console.print(f"  Parent: {meta.parent} (missing)")
+            grid.add_row("Parent", f"[red]{meta.parent} (missing)[/red]")
+    else:
+        grid.add_row("Parent", "[dim]—[/dim]")
+
     if meta.root and meta.root != meta.id:
         try:
             root = _load_meta(meta.root)
-            console.print(f"  Root: {root.name} ({root.id})")
+            grid.add_row("Root", f"{root.name} [dim]({root.id})[/dim]")
         except FileNotFoundError:
-            console.print(f"  Root: {meta.root} (missing)")
-    console.print(f"  Children: {len(children)}")
-    console.print(f"  Sessions: {meta.session_count}")
+            grid.add_row("Root", f"[red]{meta.root} (missing)[/red]")
+
+    grid.add_row("Sessions", str(meta.session_count))
+    grid.add_row("Children", str(len(children)))
+    grid.add_row("Created", f"[dim]{meta.created[:19]}[/dim]")
+    grid.add_row("Updated", f"[dim]{meta.updated[:19]}[/dim]")
+    grid.add_row("Directory", f"[dim]{_quest_dir(meta.id)}[/dim]")
     if meta.created_dir:
-        console.print(f"  Created in: {meta.created_dir}")
-    console.print(f"  Created: {meta.created}")
-    console.print(f"  Updated: {meta.updated}")
-    console.print(f"  Dir: {_quest_dir(meta.id)}")
+        grid.add_row("Created in", f"[dim]{meta.created_dir}[/dim]")
+
+    if meta.description:
+        grid.add_row("", "")
+        grid.add_row("Description", meta.description)
+
+    # Child tree
+    if children:
+        grid.add_row("", "")
+        child_tree = Tree("[bold]Children[/bold]")
+        active_id = active.id if active else None
+        for child in children:
+            _build_tree_node(child_tree, child.id, active_id)
+        grid.add_row("", child_tree)
+
+    # Panel
+    title = f"[bold]{meta.name}[/bold]"
+    if is_active:
+        title += " [yellow]● active[/yellow]"
+    panel = Panel(grid, title=title, border_style="blue", expand=False)
+    console.print(panel)

@@ -237,6 +237,7 @@ def list_cmd():
     table.add_column("Parent", style="dim", no_wrap=True)
     table.add_column("Status", no_wrap=True)
     table.add_column("Sess", justify="right", no_wrap=True)
+    table.add_column("Cost", justify="right", no_wrap=True, style="green")
 
     def _add_quest_row(quest: state.QuestMeta):
         marker = " [yellow]●[/yellow]" if quest.id == active_id else ""
@@ -251,12 +252,15 @@ def list_cmd():
         if quest.description:
             desc = quest.description if len(quest.description) <= 38 else quest.description[:35] + "..."
             name_cell += f"\n[dim]{desc}[/dim]"
+        cost = state.quest_total_cost(quest.id)
+        cost_str = f"${cost:.2f}" if cost is not None else "[dim]—[/dim]"
         table.add_row(
             name_cell,
             quest.id,
             parent_name,
             quest.status,
             str(quest.session_count),
+            cost_str,
         )
         for child in state.get_children(quest.id):
             _add_quest_row(child)

@@ -400,6 +400,23 @@ def parse_transcript_usage(transcript_path: Path) -> dict:
     return totals
 
 
+def quest_total_cost(quest_id: str) -> float | None:
+    """Sum USD cost across all sessions for a quest. Returns None if no data."""
+    sessions = get_sessions(quest_id)
+    if not sessions:
+        return None
+    total = 0.0
+    found_any = False
+    for s in sessions:
+        t = find_transcript(s["session_id"])
+        if t:
+            usage = parse_transcript_usage(t)
+            if usage.get("cost_usd") is not None:
+                total += usage["cost_usd"]
+                found_any = True
+    return round(total, 4) if found_any else None
+
+
 # --- Git versioning ---
 
 
@@ -617,6 +634,9 @@ def render_status(meta: QuestMeta):
             grid.add_row("Root", f"[red]{meta.root} (missing)[/red]")
 
     grid.add_row("Sessions", str(meta.session_count))
+    cost = quest_total_cost(meta.id)
+    if cost is not None:
+        grid.add_row("Cost", f"[green]${cost:.4f}[/green]")
     grid.add_row("Children", str(len(children)))
     grid.add_row("Created", f"[dim]{meta.created[:19]}[/dim]")
     grid.add_row("Updated", f"[dim]{meta.updated[:19]}[/dim]")

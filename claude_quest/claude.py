@@ -58,6 +58,9 @@ def _cleanup(local_dir: Path):
 DEFAULT_MAX_STATE_KB = 80
 
 
+# State mutations: edit-then-commit-by-reference. Claude edits the staged
+# state.md directly, commits via $(cat ...). Avoids echoing full state as
+# string literal — saves tokens and reduces drift from in-context rewrites.
 def build_system_prompt(quest_id: str, local_dir_name: str, max_state_kb: int = DEFAULT_MAX_STATE_KB) -> str:
     meta = state.get_quest(quest_id)
     depth = state.quest_depth(quest_id)
@@ -107,7 +110,7 @@ To read another quest's contents, use `claude-quest dump <name|id>` to copy it i
 
 **NEVER run these unless the user explicitly asks you to.** Do not auto-commit, auto-attach, auto-merge, or auto-dump.
 
-**Before any commit:** Always read the current `{local_dir_name}/state.md` and `{local_dir_name}/log.md` first. Then draft what you plan to write and show it to the user for confirmation before running the commit command. Commits are versioned — every commit creates a permanent forward entry in history.
+**State workflow:** Edit `{local_dir_name}/state.md` directly, commit via `claude-quest commit --state "$(cat {local_dir_name}/state.md)"`. Prefer surgical edits over full rewrites.
 
 **State size budget:** state.md is currently {state_size_kb:.1f}KB of {max_state_kb}KB. If a commit would push state.md beyond the limit, nudge the user to summarize or restructure before committing. Move detailed content to attached files (`claude-quest attach`) and keep state.md as a concise summary. The knowledge base in `files/` has no size limit — only state.md is budgeted because it's injected into every session's context window.
 
@@ -115,7 +118,7 @@ To read another quest's contents, use `claude-quest dump <name|id>` to copy it i
 
 | Command | What it does |
 |---|---|
-| `claude-quest commit --state "..."` | Overwrite state.md |
+| `claude-quest commit --state "$(cat {local_dir_name}/state.md)"` | Commit state from edited file |
 | `claude-quest commit --log "..."` | Append to log.md |
 | `claude-quest merge <id>` | Mark a quest as merged |
 | `claude-quest dump <id>` | Dump a quest's contents into CWD for reading |

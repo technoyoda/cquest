@@ -12,6 +12,7 @@ import os
 import re
 import shutil
 import subprocess
+import uuid
 from pathlib import Path
 
 from . import state
@@ -194,8 +195,14 @@ def launch_claude(
         "Bash(claude-quest dump*)",
     ]
 
+    # Generate session ID unless user is resuming an existing session
+    has_resume = extra_args and any(a in ("--resume", "-r") for a in extra_args)
+    session_id = None if has_resume else str(uuid.uuid4())
+
     prompt_flag = "--system-prompt" if prompt_mode == "replace" else "--append-system-prompt"
     cmd = ["claude", prompt_flag, prompt]
+    if session_id:
+        cmd.extend(["--session-id", session_id])
     for tool in ALLOWED_TOOLS:
         cmd.extend(["--allowedTools", tool])
     if extra_args:
@@ -205,5 +212,6 @@ def launch_claude(
         # No stdin/stdout/stderr capture = inherits parent's TTY
         subprocess.run(cmd, env=env, check=False)
     finally:
-        # Wipe the snapshot on exit
+        if session_id:
+            state.log_session(quest_id, session_id)
         _cleanup(local_dir)

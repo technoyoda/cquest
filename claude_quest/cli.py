@@ -408,6 +408,75 @@ def commit(state_content: str | None, log_entry: str | None, quest: str | None):
 
 
 @cli.command()
+@click.argument("id_or_name", required=False)
+def cost(id_or_name: str | None):
+    """Show token usage across all sessions for a quest."""
+    if id_or_name:
+        try:
+            meta = state.get_quest(id_or_name)
+        except FileNotFoundError:
+            console.print(f"[red]Quest '{id_or_name}' not found.[/red]")
+            raise SystemExit(1)
+    else:
+        meta = state.get_active()
+        if meta is None:
+            console.print("[red]No active quest.[/red]")
+            raise SystemExit(1)
+
+    sessions = state.get_sessions(meta.id)
+    if not sessions:
+        console.print(f"[dim]No sessions logged for[/dim] [bold]{meta.name}[/bold]")
+        return
+
+    table = Table(show_header=True, padding=(0, 1, 0, 1))
+    table.add_column("Session", style="dim", no_wrap=True)
+    table.add_column("Date", style="dim", no_wrap=True)
+    table.add_column("Model", style="dim", no_wrap=True)
+    table.add_column("Input", justify="right")
+    table.add_column("Output", justify="right")
+    table.add_column("Cache W", justify="right")
+    table.add_column("Cache R", justify="right")
+    table.add_column("Cost", justify="right", style="green")
+
+    grand = {"input_tokens": 0, "output_tokens": 0, "cache_creation_input_tokens": 0, "cache_read_input_tokens": 0, "cost_usd": 0.0}
+
+    for s in sessions:
+        sid = s["session_id"]
+        ts = s.get("timestamp", "?")[:16]
+        transcript = state.find_transcript(sid)
+        if transcript:
+            usage = state.parse_transcript_usage(transcript)
+            for k in ("input_tokens", "output_tokens", "cache_creation_input_tokens", "cache_read_input_tokens"):
+                grand[k] += usage[k]
+            cost = usage.get("cost_usd")
+            if cost is not None:
+                grand["cost_usd"] += cost
+            table.add_row(
+                sid[:8],
+                ts,
+                usage.get("model") or "?",
+                f"{usage['input_tokens']:,}",
+                f"{usage['output_tokens']:,}",
+                f"{usage['cache_creation_input_tokens']:,}",
+                f"{usage['cache_read_input_tokens']:,}",
+                f"${cost:.4f}" if cost is not None else "[dim]?[/dim]",
+            )
+        else:
+            table.add_row(sid[:8], ts, "[dim]?[/dim]", "[dim]—[/dim]", "[dim]—[/dim]", "[dim]—[/dim]", "[dim]—[/dim]", "[dim]—[/dim]")
+
+    console.print(f"[bold]{meta.name}[/bold] [dim]({meta.id})[/dim] — token usage\n")
+    console.print(table)
+    console.print(
+        f"\n[bold]Total[/bold]  "
+        f"Input: {grand['input_tokens']:,}  "
+        f"Output: {grand['output_tokens']:,}  "
+        f"Cache W: {grand['cache_creation_input_tokens']:,}  "
+        f"Cache R: {grand['cache_read_input_tokens']:,}  "
+        f"[bold green]${grand['cost_usd']:.4f}[/bold green]"
+    )
+
+
+@cli.command()
 @click.argument("id_or_name")
 def merge(id_or_name: str):
     """Mark a quest as merged."""

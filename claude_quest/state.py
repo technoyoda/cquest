@@ -299,6 +299,107 @@ def get_files_dir(quest_id: str) -> Path:
     return _files_dir(quest_id)
 
 
+# Sessions live outside quest directories intentionally. Quests are long-horizon
+# knowledge state — every object in a quest gets first-class version control.
+# Sessions are operational metadata (which Claude process ran when) that shouldn't
+# intermingle with real state, get copied on side-quests, or pollute git history.
+def _sessions_dir() -> Path:
+    return QUESTS_ROOT / "sessions"
+
+
+def log_session(quest_id: str, session_id: str):
+    """Append a session ID to the quest's session log (outside quest dir)."""
+    sdir = _sessions_dir()
+    sdir.mkdir(parents=True, exist_ok=True)
+    path = sdir / f"{quest_id}.json"
+    sessions = json.loads(path.read_text()) if path.exists() else []
+    sessions.append({
+        "session_id": session_id,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    })
+    path.write_text(json.dumps(sessions, indent=2) + "\n")
+
+
+def get_sessions(quest_id: str) -> list[dict]:
+    """Read session log for a quest, deduplicated by session_id."""
+    path = _sessions_dir() / f"{quest_id}.json"
+    if not path.exists():
+        return []
+    sessions = json.loads(path.read_text())
+    seen = set()
+    unique = []
+    for s in sessions:
+        sid = s.get("session_id")
+        if sid not in seen:
+            seen.add(sid)
+            unique.append(s)
+    return unique
+
+
+def find_transcript(session_id: str) -> Path | None:
+    """Find the .jsonl transcript for a session ID."""
+    claude_projects = Path.home() / ".claude" / "projects"
+    if not claude_projects.exists():
+        return None
+    for project_dir in claude_projects.iterdir():
+        candidate = project_dir / f"{session_id}.jsonl"
+        if candidate.exists():
+            return candidate
+    return None
+
+
+# Cost data isn't exposed by the claude CLI when wrapping over the shell.
+# As a naive workaround we calculate prices lazily in the cost function
+# from token counts + a hardcoded pricing table. If there's ever a simpler
+# way (e.g. cost field in transcripts or a CLI flag), replace this.
+# Per-million-token pricing. Update when Anthropic changes prices.
+MODEL_PRICING = {
+    "claude-opus-4-6": {"input": 15.0, "output": 75.0, "cache_write": 18.75, "cache_read": 1.50},
+    "claude-sonnet-4-6": {"input": 3.0, "output": 15.0, "cache_write": 3.75, "cache_read": 0.30},
+    "claude-haiku-4-5": {"input": 0.80, "output": 4.0, "cache_write": 1.00, "cache_read": 0.08},
+}
+
+
+def parse_transcript_usage(transcript_path: Path) -> dict:
+    """Sum token usage and compute USD cost from a transcript."""
+    totals = {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+    }
+    model = None
+    with open(transcript_path) as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            d = json.loads(line)
+            msg = d.get("message", {})
+            if isinstance(msg, dict):
+                if "model" in msg and model is None:
+                    model = msg["model"]
+                if "usage" in msg:
+                    u = msg["usage"]
+                    for key in totals:
+                        totals[key] += u.get(key, 0)
+
+    totals["model"] = model
+    pricing = MODEL_PRICING.get(model, {})
+    if pricing:
+        cost = (
+            totals["input_tokens"] * pricing["input"]
+            + totals["output_tokens"] * pricing["output"]
+            + totals["cache_creation_input_tokens"] * pricing["cache_write"]
+            + totals["cache_read_input_tokens"] * pricing["cache_read"]
+        ) / 1_000_000
+        totals["cost_usd"] = round(cost, 4)
+    else:
+        totals["cost_usd"] = None
+
+    return totals
+
+
 # --- Git versioning ---
 
 

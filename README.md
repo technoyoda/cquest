@@ -1,6 +1,6 @@
 # claude-quest
 
-Persistent, branching context manager for Claude Code sessions. Maintains longitudinal project state across hundreds of sessions so context is never lost.
+> Making claude useful for long timehorizon evolutionary problem solving
 
 ## Why
 

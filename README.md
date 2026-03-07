@@ -1,6 +1,6 @@
 # claude-quest
 
-> Making claude useful for long timehorizon evolutionary problem solving
+> Making claude useful for very long time horizon collaborative problem solving
 
 ## Why
 

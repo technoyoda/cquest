@@ -50,12 +50,16 @@ def new(name: str, system_prompt: str | None, prompt_mode: str, max_state_size: 
 
 @cli.command(context_settings={"ignore_unknown_options": True})
 @click.argument("id_or_name", required=False)
+@click.option("--resume", "-r", is_flag=True, help="Resume the last Claude conversation instead of starting fresh.")
 @click.option("--system-prompt", "-s", default=None, help="Additional system prompt text.")
 @click.option("--prompt-mode", type=click.Choice(["append", "replace"]), default="append", help="How to inject the quest prompt: append to default or replace it.")
 @click.option("--max-state-size", default=claude.DEFAULT_MAX_STATE_KB, type=int, help="Max state.md size in KB (default: 80).")
 @click.argument("extra_args", nargs=-1, type=click.UNPROCESSED)
-def go(id_or_name: str | None, system_prompt: str | None, prompt_mode: str, max_state_size: int, extra_args: tuple):
+def go(id_or_name: str | None, resume: bool, system_prompt: str | None, prompt_mode: str, max_state_size: int, extra_args: tuple):
     """Resume a quest and launch Claude.
+
+    Use -r to continue the last Claude conversation. If the quest has
+    multiple sessions, shows a picker to choose which one to resume.
 
     Extra args after -- are passed through to claude.
     """
@@ -77,11 +81,73 @@ def go(id_or_name: str | None, system_prompt: str | None, prompt_mode: str, max_
             console.print(f"[red]Quest '{id_or_name}' not found.[/red]")
             raise SystemExit(1)
 
+    # Handle -r: pick a session to resume
+    resume_session_id = None
+    if resume:
+        sessions = state.get_sessions(meta.id)
+        if not sessions:
+            console.print("[yellow]No previous sessions found — starting fresh.[/yellow]")
+        elif len(sessions) == 1:
+            resume_session_id = sessions[0]["session_id"]
+            console.print(f"[dim]Resuming session {resume_session_id[:8]}[/dim]")
+        else:
+            # Multiple sessions — show picker, most recent first
+            sessions = sorted(sessions, key=lambda s: s.get("timestamp", ""), reverse=True)
+            table = Table(show_header=True, padding=(0, 1, 0, 1))
+            table.add_column("#", justify="right", style="bold", no_wrap=True)
+            table.add_column("Session", style="dim", no_wrap=True)
+            table.add_column("Date", style="dim", no_wrap=True)
+            table.add_column("Cost", justify="right", style="green", no_wrap=True)
+
+            for i, s in enumerate(sessions, 1):
+                sid = s["session_id"]
+                ts_raw = s.get("timestamp", "")
+                if ts_raw:
+                    # "Mar 4, 15:35 (3d ago)"
+                    from datetime import datetime
+                    try:
+                        dt = datetime.fromisoformat(ts_raw)
+                        date_str = dt.strftime("%b %-d, %H:%M")
+                    except (ValueError, TypeError):
+                        date_str = ts_raw[:16]
+                    rel = state._relative_time(ts_raw)
+                    ts = f"{date_str} ({rel})"
+                else:
+                    ts = "?"
+                transcript = state.find_transcript(sid)
+                if transcript:
+                    usage = state.parse_transcript_usage(transcript)
+                    cost = usage.get("cost_usd")
+                    cost_str = f"${cost:.2f}" if cost is not None else "[dim]?[/dim]"
+                else:
+                    cost_str = "[dim]—[/dim]"
+                table.add_row(str(i), sid[:8], ts, cost_str)
+
+            console.print(f"\n[bold]{meta.name}[/bold] — sessions:\n")
+            console.print(table)
+            choice = console.input(f"\nResume session [bold][1][/bold]: ").strip()
+            if not choice:
+                choice = "1"
+            try:
+                idx = int(choice) - 1
+                if idx < 0 or idx >= len(sessions):
+                    raise ValueError
+                resume_session_id = sessions[idx]["session_id"]
+            except ValueError:
+                console.print("[red]Invalid choice.[/red]")
+                raise SystemExit(1)
+
     state.set_active(meta.id)
     console.print(f"[green]Resuming quest[/green] [bold]{meta.name}[/bold] [dim]({meta.id})[/dim]")
+
+    # Inject --resume <session-id> into extra_args
+    resume_args = list(extra_args) if extra_args else []
+    if resume_session_id:
+        resume_args.extend(["--resume", resume_session_id])
+
     claude.launch_claude(
         meta.id,
-        extra_args=list(extra_args) if extra_args else None,
+        extra_args=resume_args or None,
         extra_system_prompt=system_prompt,
         prompt_mode=prompt_mode,
         max_state_kb=max_state_size,

@@ -2,13 +2,31 @@
 
 Persistent, branching context manager for Claude Code sessions. Maintains longitudinal project state across hundreds of sessions so context is never lost.
 
-## Problem
+## Why
 
-Claude Code sessions are isolated. Over time, context is lost. You re-explain project structure, past decisions, and accumulated knowledge every session.
+Every token in a language model's context shapes how it searches for solutions. Context isn't decoration; it is the computational substrate. Your file system, your accumulated knowledge, the way information is organized around a task: all of it determines how effectively the model works for you.
 
-## Solution
+This matters because real work happens over long time horizons. Projects span weeks, months, years. You accumulate understanding that lives in your head: decisions made, dead ends explored, architecture evolved. But Claude Code sessions are isolated. Every new session starts blank. The context that makes you effective doesn't transfer to the agent working alongside you.
 
-`claude-quest` wraps `claude`, injecting accumulated quest state into each session via `--append-system-prompt`. State mutations happen explicitly through CLI commands that Claude calls during the session.
+A quest fixes this. It is a persistent, evolving container for the knowledge you and Claude accumulate together. The metaphor is deliberate: a quest is a journey that transforms both the person on it and the companion traveling with them. When you go on a quest with Claude, you want the NPC following you to evolve as you evolve, accumulating what you've learned together, forgetting what's no longer relevant, carrying forward what matters for where the quest is heading next.
+
+The human holds the long-horizon policy. Claude operates within a session. The human operates across the arc of the quest. That's why state mutations are always explicit, never automatic. The person who knows where the quest is going decides what their companion remembers.
+
+For the full reasoning, see [docs/philosophy.md](docs/philosophy.md).
+
+## How
+
+`claude-quest` is a CLI that wraps `claude`. It manages the loop between what the quest knows and what Claude sees.
+
+When you start a session, the quest's accumulated state (`state.md`) is injected into Claude's system prompt. Claude sees everything the quest has learned so far as passive background context: project architecture, past decisions, accumulated research, whatever you've committed over time. This is the context that shapes how Claude searches for solutions in that session.
+
+During the session, you and Claude work together. When something worth keeping emerges (a decision, a finding, a milestone), you tell Claude to commit it. State gets updated. A log entry records what happened and why. The quest moves forward.
+
+Next session, Claude starts with the evolved state. It doesn't need to be re-told what happened. The quest remembers.
+
+Quests can branch into side quests for focused exploration and merge back when the findings are ready. They can fork into independent roots when work outgrows its origin. Every commit is version-controlled so you can see how the quest evolved and roll back if needed.
+
+The tool is deliberately lean. A state file, a log, a tree structure, explicit commits, and system prompt injection. Nothing more. Claude Code is the current medium; the quest abstraction is the point.
 
 ## Install
 
@@ -24,11 +42,14 @@ pip install -e .
 # Start a new quest — creates state, launches Claude
 claude-quest new "build-rl-agent"
 
-# Resume the active quest
+# Resume the active quest (fresh session)
 claude-quest go
 
 # Resume a specific quest by name
 claude-quest go build-rl-agent
+
+# Continue the last conversation where you left off
+claude-quest go build-rl-agent -r
 
 # Resume with extra flags passed through to claude
 claude-quest go build-rl-agent -- --model sonnet
@@ -58,6 +79,7 @@ All session launchers support:
 |---|---|
 | `claude-quest new <name>` | Create a root quest, set active, launch Claude |
 | `claude-quest go [name\|id]` | Resume a quest (default: active), launch Claude |
+| `claude-quest go [name\|id] -r` | Resume quest and continue the last conversation |
 | `claude-quest side [-n name] [--from quest]` | Branch a side quest (child) from a quest, launch Claude |
 | `claude-quest side [-n name] [--from quest] --fork` | Fork as independent root — copies state but no parent link |
 
@@ -164,6 +186,24 @@ Claude's system prompt provides quest context as passive background information.
 - **Rename/describe**: `claude-quest rename`, `claude-quest describe --set`
 
 Environment variables (`CLAUDE_QUEST_ID`, `CLAUDE_QUEST_NAME`, etc.) are set automatically so commands like `claude-quest commit` and `claude-quest attach` know which quest to target without arguments.
+
+### State and logs
+
+A quest has two files that capture its evolution: `state.md` and `log.md`. They serve different purposes.
+
+**state.md** is the accumulated knowledge of the quest. It is injected into every session's system prompt. It should be concise, current, and actively maintained. As the quest evolves, state gets restructured, compressed, and pruned. Old information that no longer matters gets removed. State represents what the quest *is right now*.
+
+**log.md** is the append-only record of the quest's journey. It book-keeps the evolution of the quest itself: milestones reached, decisions made, approaches tried and abandoned, things learned. Unlike state, log entries are never edited or removed. The log represents *how the quest got here*.
+
+```bash
+# Commit both state and a log entry in one call
+claude-quest commit --state "$(cat .quest-myproject/state.md)" --log "Finished migrating to new API. Old endpoints removed."
+
+# Just log a milestone without changing state
+claude-quest commit --log "Explored approach B. Dead end — failed to repro bug."
+```
+
+The log is especially valuable when returning to a quest after a long break or when merging side quests. It answers "what happened and why" without cluttering the state that Claude reads every session.
 
 ### Branching and forking
 

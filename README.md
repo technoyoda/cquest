@@ -4,7 +4,7 @@
 
 ## Why
 
-> Context is the computational substrate. As humans evolve their understanding, the agents working with them need to evolve too.
+> Real work spans weeks, months, years. It involves pivots, direction shifts, dead-ends, open-ended exploration and many other things that cannot trivially be captured in claude sessions. This context that makes you effective is lost every time a session ends and is never truly carried across sessions.
 
 <details>
 <summary>Read more</summary>
@@ -17,7 +17,7 @@ As projects evolve, the humans working on them develop a deeper and better under
 
 ### Framing
 
-> You're on a quest. Claude is the companion NPC. It should evolve with you, explicitly.
+> In games, NPCs evolve with you through a quest. The same idea applies here: Claude is the companion, and the human decides how it evolves through the quest the human and claude embark on.
 
 <details>
 <summary>Read more</summary>
@@ -34,7 +34,7 @@ For the full reasoning, see [docs/philosophy.md](docs/philosophy.md).
 
 ## How
 
-> A CLI that wraps `claude`, managing the loop between accumulated quest knowledge and what Claude sees each session.
+> A CLI that wraps `claude`, injecting accumulated quest state into each session so the agent evolves with you. The CLI exposes commands that Claude can call during the session to commit state, log milestones, and attach files, all driven by the human.
 
 <details>
 <summary>Read more</summary>

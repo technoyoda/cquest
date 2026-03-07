@@ -175,7 +175,16 @@ The snapshot is a read-only dump of quest state so Claude never leaves the user'
 
 ### In-session operations
 
-Claude's system prompt provides quest context as passive background information. All mutations are user-initiated:
+When a quest session is running, Claude has the quest's accumulated state as background context but does not act on it unless you ask. You drive all mutations. The typical flow looks like:
+
+1. You and Claude work on the task at hand (writing code, researching, debugging, etc.)
+2. When something worth preserving emerges, you tell Claude to commit it: *"commit state"* or *"log that we decided to use approach X"*
+3. Claude runs the `claude-quest commit` command with the updated content
+4. You continue working. Repeat as needed.
+
+Claude never auto-commits, auto-logs, or auto-attaches. You decide when knowledge crystallizes.
+
+The available in-session commands:
 
 - **Commit state**: `claude-quest commit --state "..." --log "..."`
 - **Attach files**: `claude-quest attach <file>`
@@ -215,7 +224,7 @@ Both copy `state.md`, `log.md`, and `files/` from the source quest.
 # Side quest: branches under project-x
 claude-quest side -n "experiment-a"
 
-# Side quest from a specific quest (not just active)
+# Side quest from a specific quest (not just active quest in cwd)
 claude-quest side -n "experiment-b" --from project-x
 
 # Fork: independent root with project-x's state
@@ -251,7 +260,7 @@ Side quests start with a fresh git history — they don't inherit the parent's c
 
 ### State size budget
 
-`state.md` is injected into every session's system prompt. To keep it within the model's context window, its size is budgeted — default 80KB (~20K tokens). The system prompt tells Claude the current size and limit, so it nudges users to summarize or restructure when state grows large.
+`state.md` is injected into every session's system prompt. To keep it within the model's context window, its size is budgeted (default 80KB ~20K tokens). The system prompt tells Claude the current size and limit, so it nudges users to summarize or restructure when state grows large. But there is no explicit enforcements since future models would ideally accomodate for size growth. The 80KB size is a recommendation not a rule. 
 
 The `files/` knowledge base has **no size limit**. Detailed research, artifacts, and reference material should live in attached files, with `state.md` serving as a concise summary pointing to them.
 

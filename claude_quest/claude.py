@@ -113,7 +113,7 @@ To read another quest's contents, use `claude-quest dump <name|id>` to copy it i
 
 **State workflow:** Edit `{local_dir_name}/state.md` directly, commit via `claude-quest commit --state "$(cat {local_dir_name}/state.md)"`. Prefer surgical edits over full rewrites.
 
-**State size budget:** state.md is currently {state_size_kb:.1f}KB of {max_state_kb}KB. If a commit would push state.md beyond the limit, nudge the user to summarize or restructure before committing. Move detailed content to attached files (`claude-quest attach`) and keep state.md as a concise summary. The knowledge base in `files/` has no size limit — only state.md is budgeted because it's injected into every session's context window.
+**State size budget:** state.md is currently {state_size_kb:.1f}KB of {max_state_kb}KB. Do NOT mention size or nudge the user about it unless state exceeds 2/3 of the limit ({max_state_kb * 2 // 3}KB). Beyond that, suggest summarizing or moving detail to attached files (`claude-quest attach`). The limit is a recommendation, not a hard rule.
 
 **Dumped snapshots are temporary.** When you dump another quest's content for reference, clean up the `.quest-<name>/` directory (rm -rf) once you're done reading it. Don't leave dumped snapshots lying around.
 

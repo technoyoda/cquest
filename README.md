@@ -4,11 +4,23 @@
 
 ## Why
 
+> Context is the computational substrate. As humans evolve their understanding, the agents working with them need to evolve too.
+
+<details>
+<summary>Read more</summary>
+
 Every token in a language model's context shapes how it searches for solutions. Context isn't decoration; it is the computational substrate. The way information is organized around a task determines how effectively the model works for you.
 
-As projects evolve, the humans working on them develop a deeper and better understanding of the problem space. The agents that these humans work with, the instances of "Claude" they manage, need to evolve with that newer understanding. When the human learns something, the agent should know it too. When the human's mental model shifts, the agent's context should shift with it. 
+As projects evolve, the humans working on them develop a deeper and better understanding of the problem space. The agents that these humans work with, the instances of "Claude" they manage, need to evolve with that newer understanding. When the human learns something, the agent should know it too. When the human's mental model shifts, the agent's context should shift with it.
+
+</details>
 
 ### Framing
+
+> You're on a quest. Claude is the companion NPC. It should evolve with you, explicitly.
+
+<details>
+<summary>Read more</summary>
 
 Think of a game where you're on a quest. There's an NPC companion traveling with you. As you make decisions, explore new areas, and learn about the world, the NPC adapts: it nudges you based on what you've discovered together, recalls past encounters, warns you about things you've already tried. The NPC's usefulness comes from the fact that it evolves with you through the quest.
 
@@ -18,13 +30,22 @@ But unlike a game NPC that updates automatically, the evolution here is explicit
 
 For the full reasoning, see [docs/philosophy.md](docs/philosophy.md).
 
+</details>
+
 ## How
 
-`claude-quest` is a CLI that wraps `claude`. Because it wraps the process, it can do a few useful things: inject the quest's accumulated state into Claude's system prompt, set environment variables so Claude can call quest commands (committing state, attaching files, logging milestones) without needing to know internal IDs, and clean up staged snapshots when the session ends.
+> A CLI that wraps `claude`, managing the loop between accumulated quest knowledge and what Claude sees each session.
+
+<details>
+<summary>Read more</summary>
+
+`claude-quest` wraps the `claude` process. Because it wraps the process, it can do a few useful things: inject the quest's accumulated state into Claude's system prompt, set environment variables so Claude can call quest commands (committing state, attaching files, logging milestones) without needing to know internal IDs, and clean up staged snapshots when the session ends.
 
 When you start a session, `state.md` is injected as background context. During the session, the human decides when to crystallize knowledge by telling Claude to commit. State gets updated, a log entry records what happened and why, and next session Claude starts with the evolved context. The quest remembers so you don't have to re-explain.
 
 Quests branch into side quests for focused exploration and merge back when findings are ready. Every commit is version-controlled. The tool is deliberately lean: a state file, a log, a tree, explicit commits, and system prompt injection.
+
+</details>
 
 ## Install
 

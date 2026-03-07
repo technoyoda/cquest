@@ -36,7 +36,9 @@ Claude Code is the current medium. The `--append-system-prompt` flag, the `.json
 
 The essence is simpler: a human and an agent go on a quest together. The quest accumulates knowledge. The knowledge shapes how the agent operates. The human curates what the agent remembers. The quest can branch, merge, and evolve. The agent's effectiveness compounds over time because its context improves over time.
 
-This essence requires very little machinery. A state file, a tree structure, explicit commit semantics, and a way to inject accumulated context into each session. That's it. The leanness is intentional. Quests are the simplest software form that captures this capability.
+The leanness is a deliberate design choice. Consider the agent's environment: the codebases it reads, the databases it queries, the APIs it calls, the file systems it navigates. All of these evolve on their own. They are separate from the agent and the human working with it. The information that the agent needs to operate in these environments (how to call an API, what a schema looks like, how to run a build) is completely isolated from the knowledge the agent accumulates while working alongside the human (what we've tried, what we've decided, where the project is heading).
+
+claude-quest is concerned only with the second kind. It exists purely to help the agent evolve alongside the human, not to manage the environments the agent interacts with. That separation is what keeps it lean. A state file, a tree structure, explicit commit semantics, and a way to inject accumulated context into each session. That's it. claude-quest is a simple implementation of this essence in software form.
 
 ## The exploration-to-exploitation pipeline
 

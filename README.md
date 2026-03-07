@@ -4,29 +4,23 @@
 
 ## Why
 
-Every token in a language model's context shapes how it searches for solutions. Context isn't decoration; it is the computational substrate. Your file system, your accumulated knowledge, the way information is organized around a task: all of it determines how effectively the model works for you.
+Every token in a language model's context shapes how it searches for solutions. Context isn't decoration; it is the computational substrate. The way information is organized around a task determines how effectively the model works for you.
 
-This matters because real work happens over long time horizons. Projects span weeks, months, years. You accumulate understanding that lives in your head: decisions made, dead ends explored, architecture evolved. But Claude Code sessions are isolated. Every new session starts blank. The context that makes you effective doesn't transfer to the agent working alongside you.
+As projects evolve, the humans working on them develop a deeper and better understanding of the problem space. The agents that these humans work with, the instances of "Claude" they manage, need to evolve with that newer understanding. When the human learns something, the agent should know it too. When the human's mental model shifts, the agent's context should shift with it. 
 
-A quest fixes this. It is a persistent, evolving container for the knowledge you and Claude accumulate together. The metaphor is deliberate: a quest is a journey that transforms both the person on it and the companion traveling with them. When you go on a quest with Claude, you want the NPC following you to evolve as you evolve, accumulating what you've learned together, forgetting what's no longer relevant, carrying forward what matters for where the quest is heading next.
+Every time a human and Claude work together on something that spans more than a single session, they are going on a quest. The bot evolves alongside the human in the quest: accumulating what they've learned together, forgetting what's no longer relevant, carrying forward what matters for where things are heading next.
 
-The human holds the long-horizon policy. Claude operates within a session. The human operates across the arc of the quest. That's why state mutations are always explicit, never automatic. The person who knows where the quest is going decides what their companion remembers.
+The human holds the long-horizon policy. Claude operates within a session. The human operates across the arc of the quest. The person who knows where the quest is going decides what how thier companion remembers and needs to know things. 
 
 For the full reasoning, see [docs/philosophy.md](docs/philosophy.md).
 
 ## How
 
-`claude-quest` is a CLI that wraps `claude`. It manages the loop between what the quest knows and what Claude sees.
+`claude-quest` is a CLI that wraps `claude`. Because it wraps the process, it can do a few useful things: inject the quest's accumulated state into Claude's system prompt, set environment variables so Claude can call quest commands (committing state, attaching files, logging milestones) without needing to know internal IDs, and clean up staged snapshots when the session ends.
 
-When you start a session, the quest's accumulated state (`state.md`) is injected into Claude's system prompt. Claude sees everything the quest has learned so far as passive background context: project architecture, past decisions, accumulated research, whatever you've committed over time. This is the context that shapes how Claude searches for solutions in that session.
+When you start a session, `state.md` is injected as background context. During the session, the human decides when to crystallize knowledge by telling Claude to commit. State gets updated, a log entry records what happened and why, and next session Claude starts with the evolved context. The quest remembers so you don't have to re-explain.
 
-During the session, you and Claude work together. When something worth keeping emerges (a decision, a finding, a milestone), you tell Claude to commit it. State gets updated. A log entry records what happened and why. The quest moves forward.
-
-Next session, Claude starts with the evolved state. It doesn't need to be re-told what happened. The quest remembers.
-
-Quests can branch into side quests for focused exploration and merge back when the findings are ready. They can fork into independent roots when work outgrows its origin. Every commit is version-controlled so you can see how the quest evolved and roll back if needed.
-
-The tool is deliberately lean. A state file, a log, a tree structure, explicit commits, and system prompt injection. Nothing more. Claude Code is the current medium; the quest abstraction is the point.
+Quests branch into side quests for focused exploration and merge back when findings are ready. Every commit is version-controlled. The tool is deliberately lean: a state file, a log, a tree, explicit commits, and system prompt injection.
 
 ## Install
 

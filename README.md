@@ -46,7 +46,7 @@ claude-quest go
 # Resume a specific quest by name
 claude-quest go build-rl-agent
 
-# Continue the last conversation where you left off
+# Continue the last conversation (claude session) where you left off
 claude-quest go build-rl-agent -r
 
 # Resume with extra flags passed through to claude
@@ -76,8 +76,8 @@ All session launchers support:
 | Command | Description |
 |---|---|
 | `claude-quest new <name>` | Create a root quest, set active, launch Claude |
-| `claude-quest go [name\|id]` | Resume a quest (default: active), launch Claude |
-| `claude-quest go [name\|id] -r` | Resume quest and continue the last conversation |
+| `claude-quest go [name\|id]` | Resume a quest and launch new claude session |
+| `claude-quest go [name\|id] -r` | Resume quest and continue from last claude session |
 | `claude-quest side [-n name] [--from quest]` | Branch a side quest (child) from a quest, launch Claude |
 | `claude-quest side [-n name] [--from quest] --fork` | Fork as independent root — copies state but no parent link |
 

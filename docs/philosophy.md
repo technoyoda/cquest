@@ -1,12 +1,24 @@
 # Why Quests Exist
 
+claude-quest operates on assumptions about how language models work: pre-training embedding a distribution over language, reinforcement learning embedding behaviors upon certain tokens present in context, and inference as policy unrolling over tokens in context. It takes those assumptions and extrapolates: if this is how these systems are built, what interaction model emerges when you want to work with them over long time horizons? The project operates at a meta layer: it is not concerned with what the agent does on any particular task, but with shaping the context that determines how the agent approaches every task.
+
+This project exists now because models from Anthropic, OpenAI, and others have crossed a capability threshold where natural language functions as a reliable programming interface. The system prompt in claude-quest is written in English. The commit instructions are English. The state that shapes the agent's behavior is a markdown file. None of this works if the model cannot reliably execute behavioral specifications written in natural language. Five years ago, it could not. Today, it can. That threshold is what makes a project like this possible.
+
+The premise is simple. The agent's entire reality is its context window. Everything upon which the model makes decisions, takes actions, and navigates the world exists as tokens in that window. What is not in context does not exist for the agent. If that is how these systems fundamentally work, then the design question becomes: how do you shape what enters that window, across hundreds of sessions, over months and years of collaboration? The sections below are the answer this project arrives at.
+
 ## The computational premise
 
 Language models operate on two foundations: pre-training embeds a conditional distribution over language, and reinforcement learning embeds behavioral patterns (instruction following, tool use, long-form trajectory unrolling). Every token that enters the context window reshapes the model's entire search space for the next token. Context isn't decoration. It is the computational substrate that determines how the model searches for solutions.
 
-This means two things. First, the quality and structure of context directly controls the quality of what the model produces. Your file system, your accumulated knowledge, the way you organize information around a task, all of it ends up shaping how quickly and effectively the model finds answers. Second, if you want a model to operate well across long time horizons (weeks, months, years of work on the same project) you need a mechanism to curate and evolve that context deliberately.
+There is a second dimension to this. No model, however large, can capture the shape of all possible data in the universe. Pre-training covers a distribution over publicly available human knowledge, but it cannot contain a private company's internal architecture, an individual's unpublished research, the state of a codebase that was modified ten minutes ago, or any of the countless details that exist only in specific contexts at specific times. The model's weights carry general capability. The specifics of any real task live outside the weights.
+
+This means the problem of what the model needs to know at runtime will always exist. It is structural, not a limitation that scales away. As long as these systems operate by unrolling a policy over tokens in context, there will be a gap between what the model knows from training and what it needs to know to be effective in a particular situation. Someone has to bridge that gap by putting the right information into the context window.
+
+This leads to two conclusions. First, the quality and structure of context directly controls the quality of what the model produces. Your file system, your accumulated knowledge, the way you organize information around a task, all of it ends up shaping how quickly and effectively the model finds answers. Second, if you want a model to operate well across long time horizons (weeks, months, years of work on the same project) you need a mechanism to curate and evolve that context deliberately.
 
 claude-quest exists because of this premise. If it is correct, then this tool is as relevant fifty years from now as it is today. The specific model and interface are incidental. The problem of shaping context for long-horizon agent collaboration is fundamental.
+
+
 
 ## The quest metaphor
 
@@ -45,3 +57,5 @@ claude-quest is concerned only with the second kind. It exists purely to help th
 When building agents that need to run autonomously, you first do a lot of exploration. You try prompt strategies, test environment configurations, iterate on reward signals, stabilize tool use patterns. Only after extensive iteration do you arrive at prompts and environments stable enough to let things run free.
 
 Getting to that point requires an iterative medium: a way to accumulate learnings across dozens of sessions, branch into experiments, merge back what works, and gradually converge. Quests are that medium. They sit in the gap between "I have a vague idea" and "I have a production system", providing structure for the long exploratory phase where most of the real work happens.
+
+The endgame is that through enough exploration, the human curates state and attached artifacts to the point where the agent can manage tasks with less supervision. Short-horizon tasks that the agent handles autonomously. Longer-horizon tasks that the agent can take further before needing human input. The quest is the vehicle through which the human explores, learns, figures things out, and then distills that into context that makes the agent increasingly effective. Exploration produces the knowledge. Exploitation is what happens when that knowledge is good enough.

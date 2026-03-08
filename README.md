@@ -10,7 +10,7 @@ _aka **claude-quest**_
 <details>
 <summary>Read more</summary>
 
-Every token in a language model's context shapes how it searches for solutions. Context isn't decoration; it is the [computational substrate](docs/philosophy.md#the-computational-premise). The way information is organized around a task determines how effectively the model works for you.
+Every token in a language model's context shapes how it searches for solutions. Context isn't decoration; it is the [computational substrate](docs/philosophy.md#how-models-work). The way information is organized around a task determines how effectively the model works for you.
 
 As projects evolve, the humans working on them develop a deeper and better understanding of the problem space. The agents that these humans work with, the instances of "Claude" they manage, need to evolve with that newer understanding. When the human learns something, the agent should know it too. When the human's mental model shifts, the agent's context should [shift with it](docs/philosophy.md#why-explicit-control).
 

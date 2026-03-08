@@ -6,7 +6,7 @@ This project exists now because models from Anthropic, OpenAI, and others have c
 
 The premise is simple. The agent's entire reality is its context window. Everything upon which the model makes decisions, takes actions, and navigates the world exists as tokens in that window. What is not in context does not exist for the agent. If that is how these systems fundamentally work, then the design question becomes: how do you shape what enters that window, across hundreds of sessions, over months and years of collaboration? The sections below are the answer this project arrives at.
 
-## The computational premise
+## How models work
 
 Language models operate on two foundations: pre-training embeds a conditional distribution over language, and reinforcement learning embeds behavioral patterns (instruction following, tool use, long-form trajectory unrolling). Every token that enters the context window reshapes the model's entire search space for the next token. Context isn't decoration. It is the computational substrate that determines how the model searches for solutions.
 
@@ -54,6 +54,28 @@ cquest is concerned only with the second kind. It exists purely to help the agen
 The entire project is roughly 1,200 lines of code. This is intentional. Users configure Claude Code in arbitrarily many ways: custom MCP servers, specific tool permissions, esoteric git workflows, project-specific CLAUDE.md files, hooks, skills, environment variables, and whatever else emerges. The space of how users work and what they bring to their setup is vast and varied. cquest never intrudes into any of it. The only thing it does at runtime is inject a shim so that if the user wants to record and carry forward anything important for long-horizon collaboration, they can. It does not opinion on how you structure your codebase, how you configure Claude, what tools you allow, or what style you work in. Everything about the user's setup stays exactly as it is. cquest sits alongside it, not on top of it.
 
 This means users can use quests for whatever they want. Curate detailed state that shapes every session. Or keep state minimal and just use the log as a record of what happened with the agent over time. Attach elaborate artifacts or attach nothing. The abstraction enables long-horizon collaboration without prescribing what that collaboration looks like. The user paints the reality the agent operates in. cquest just makes sure that reality persists.
+
+## Why not more machinery
+
+cquest does not use MCP servers, hooks, custom tool definitions, or any other mechanism that would skin or modify how the agent operates. This is not a limitation. It is the central design choice.
+
+The reasoning starts from the computational premise. Models do tool calls. One of those tool calls is Bash. If the model can reliably call a bash command, then quest operations are just bash commands: `cquest commit`, `cquest attach`, `cquest dump`. The entropy in these calls is not about tool selection (the model is not choosing between competing tool types). It is about the information the user wants to persist: the state content, the log entry, the file to attach. Environment variables eliminate even the targeting entropy. The model does not need to figure out which quest it is operating on. The runtime already knows.
+
+This means cquest relies on exactly one capability that models already have and will only get better at: calling a shell command with the right arguments based on context. No new tool schemas. No custom MCP protocol. No hook registrations. The project bets on the same premise that makes models useful in the first place: they can follow instructions and make decisions based on tokens in context. As models improve, the system prompt that shapes quest behavior becomes more effective automatically. The project compounds with model quality without adding machinery.
+
+Every additional abstraction layer would shrink the user's solution space. An MCP server for quests would be one more server in the user's MCP configuration. Quest-level hooks would compete with the user's own hooks. Custom tool definitions would add to the tool namespace the model has to search over. Users bring their own environments, their own MCP servers, their own hooks, their own git workflows, their own CLAUDE.md files, their own methodologies and tastes. cquest refuses to add to that surface area. It sits in the gap between what models can already do (call bash, follow system prompt instructions) and what users need for long-horizon work (persistent, curated context). Nothing more.
+
+The project changes three things at runtime:
+
+1. **System prompt injection.** The curated state enters the context window so the shape of accumulated knowledge keeps shaping the agent's behavior.
+2. **Environment variables.** Set before launch so that quest commands called by the agent target the right quest without the agent needing to know internal IDs.
+3. **Workspace staging.** The quest's files are present in the agent's working directory so the agent can read and reference them as needed.
+
+Outside of these, cquest makes no modifications to how Claude operates.
+
+A consequence of this: you do not need to launch Claude through `cquest go` to use quests. The quest CLI is a standalone set of bash commands that read from and write to `~/.quests/`. A user can launch Claude (or any other agent) independently, give it the project's README or a condensed command reference, and the agent can call `cquest commit`, `cquest status`, `cquest dump`, and everything else directly from its shell. The commands work the same way regardless of how the agent was started. `cquest go` is a convenience that handles system prompt injection, environment variables, and workspace staging in one step. But quests are usable without it because they are just bash commands operating on a directory. This is the payoff of not building machinery: the tool is not locked to any particular launch path, agent runtime, or integration protocol.
+
+Any addition to the project should be a convenience for user visibility (cost tracking, session history, version browsing), not a new abstraction layer. The core quest concept stays orthogonal to whatever model providers offer. If there is a theoretical breakthrough in how models work that fundamentally changes how context should be managed, the project adapts. Until then, the foundation stays minimal because the premises it is built on have not changed.
 
 ## The exploration-to-exploitation pipeline
 

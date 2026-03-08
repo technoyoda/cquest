@@ -1,7 +1,7 @@
 # cquest 
 _aka **claude-quest**_
 
-> Making claude useful for very long time horizon collaborative problem solving
+> Making claude useful for collaborative problem solving over long time horizons
 
 ## Why
 

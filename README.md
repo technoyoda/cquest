@@ -15,6 +15,22 @@ As projects evolve, the humans working on them develop a deeper and better under
 
 </details>
 
+### What's missing for long-horizon collaboration
+
+> Claude Code has memory, skills, and compaction. They all share the same gap: Claude controls what persists, not you.
+
+<details>
+<summary>Read more</summary>
+
+Claude Code's [memory](https://code.claude.com/docs/en/memory) writes notes across sessions, but what gets surfaced is driven by the model's retrieval heuristics, not by where your work is heading. [Skills](https://code.claude.com/docs/en/skills) are lazy-loaded context, but deciding which skills to compose, for which task, at which phase of the project is hard to get right statically. [Compaction](https://platform.claude.com/docs/en/build-with-claude/compaction) lets you keep working past the context window limit, but it carries forward whatever the model decided to keep, not what you would have chosen.
+
+The common thread: in all three systems, Claude controls the contextualization at runtime. For short-horizon, routine work this is fine. For long-horizon work where accumulated context directly shapes the quality of output, the human needs to be the one deciding what persists, what gets pruned, and how knowledge is restructured as understanding deepens.
+
+For the full analysis, see [docs/why-quests-on-claude-code.md](docs/why-quests-on-claude-code.md).
+
+</details>
+
+
 ### Framing
 
 > In games, NPCs evolve with you through a quest. The same idea applies here: Claude is the companion, and the human decides how it evolves through the quest the human and claude embark on.
@@ -31,6 +47,7 @@ But unlike a game NPC that updates automatically, the [evolution here is explici
 For the full reasoning, see [docs/philosophy.md](docs/philosophy.md).
 
 </details>
+
 
 ## How
 

@@ -90,7 +90,14 @@ And at any point you can fork out from the quest (not from the compacted session
 
 ### Works with the raw form factor
 
-Quests use `--append-system-prompt` to inject state into sessions. That's it. They don't fight against Claude's [session model](#the-raw-form-factor). They don't depend on memory or skills. They add a thin layer of [human-curated persistence](philosophy.md#form-and-essence) on top of what is already a clean execution environment.
+Quests customize Claude through four knobs that the `claude` CLI exposes:
+
+- **`--append-system-prompt`**: Injects the quest's accumulated state into the session. This is the core mechanism. The agent starts every session knowing what the quest knows because state.md is in its context window.
+- **`--allowedTools`**: Pre-approves read-only quest commands (`claude-quest status`, `tree`, `log`, `dump`, etc.) so the agent can run them without triggering permission prompts. This removes friction for operations that don't mutate state.
+- **Environment variables**: `CLAUDE_QUEST_ID`, `CLAUDE_QUEST_NAME`, `CLAUDE_QUEST_DIR`, and others are set before launch. The agent inherits these, so when it runs `claude-quest commit` or `claude-quest attach` inside a session, the CLI knows which quest to target without the agent needing to pass IDs explicitly.
+- **`--session-id`**: Assigns a unique session ID for tracking. This is purely a convenience for the user, so that sessions have lineage and can be resumed. The quest concept does not need session IDs. It is an implementation detail of the current form factor for user happiness.
+
+That is the full surface area. Quests don't fight against Claude's [session model](#the-raw-form-factor). They don't depend on memory or skills. They skin a few knobs on the `claude` CLI to add a thin layer of [human-curated persistence](philosophy.md#form-and-essence) on top of what is already a clean execution environment.
 
 
 ## The core claim

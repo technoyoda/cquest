@@ -19,7 +19,6 @@ This leads to two conclusions. First, the quality and structure of context direc
 claude-quest exists because of this premise. If it is correct, then this tool is as relevant fifty years from now as it is today. The specific model and interface are incidental. The problem of shaping context for long-horizon agent collaboration is fundamental.
 
 
-
 ## The quest metaphor
 
 The word "quest" was chosen over "project", "context", "thread", or any technical term because the concept is broader than any of those.

@@ -2,7 +2,7 @@
 
 claude-quest operates on assumptions about how language models work: pre-training embedding a distribution over language, reinforcement learning embedding behaviors upon certain tokens present in context, and inference as policy unrolling over tokens in context. It takes those assumptions and extrapolates: if this is how these systems are built, what interaction model emerges when you want to work with them over long time horizons? The project operates at a meta layer: it is not concerned with what the agent does on any particular task, but with shaping the context that determines how the agent approaches every task.
 
-This project exists now because models from Anthropic, OpenAI, and others have crossed a capability threshold where natural language functions as a reliable programming interface. The system prompt in claude-quest is written in English. The commit instructions are English. The state that shapes the agent's behavior is a markdown file. None of this works if the model cannot reliably execute behavioral specifications written in natural language. Five years ago, it could not. Today, it can. That threshold is what makes a project like this possible.
+This project exists now because models from Anthropic, OpenAI, and others have crossed a capability threshold where natural language functions as a reliablish programming interface (for short horizon situations). The system prompt in claude-quest is written in English. The commit instructions are English. The state that shapes the agent's behavior is a markdown file. None of this works if the model cannot reliably execute behavioral specifications written in natural language. Five years ago, it could not. Today, it can. That threshold is what makes a project like this possible.
 
 The premise is simple. The agent's entire reality is its context window. Everything upon which the model makes decisions, takes actions, and navigates the world exists as tokens in that window. What is not in context does not exist for the agent. If that is how these systems fundamentally work, then the design question becomes: how do you shape what enters that window, across hundreds of sessions, over months and years of collaboration? The sections below are the answer this project arrives at.
 
@@ -41,15 +41,19 @@ Claude operates within a session. The human operates across the arc of the quest
 
 This extends to pruning. As you evolve and the kind of information you carry in your head changes, you want the NPC following you to change in the same surgical way. State should be actively maintained (grown, restructured, compressed, and sometimes discarded) by the person who understands the trajectory of the quest.
 
-## Form and essence
+## [Form and essence](https://en.wikipedia.org/wiki/Theory_of_forms)
 
-Claude Code is the current medium. The `--append-system-prompt` flag, the `.jsonl` transcripts, the CLI wrapping a subprocess: these are implementation details. They are the form.
+Strip away the specific agent, the specific CLI, the specific flags, and ask what actually needs to exist for long-horizon agent collaboration. The answer is small: a way to accumulate knowledge across sessions, a way for the human to curate it, and a way to inject it back. The quest can branch, merge, and evolve. The agent's effectiveness compounds because its context improves. That is the essence.
 
-The essence is simpler: a human and an agent go on a quest together. The quest accumulates knowledge. The knowledge shapes how the agent operates. The human curates what the agent remembers. The quest can branch, merge, and evolve. The agent's effectiveness compounds over time because its context improves over time.
+Everything else is form. Claude Code, the `--append-system-prompt` flag, the `.jsonl` transcripts, the CLI wrapping a subprocess: these are implementation details of the current form factor. They could be replaced tomorrow and the essence would not change.
 
 The leanness is a deliberate design choice. Consider the agent's environment: the codebases it reads, the databases it queries, the APIs it calls, the file systems it navigates. All of these evolve on their own. They are separate from the agent and the human working with it. The information that the agent needs to operate in these environments (how to call an API, what a schema looks like, how to run a build) is completely isolated from the knowledge the agent accumulates while working alongside the human (what we've tried, what we've decided, where the project is heading).
 
 claude-quest is concerned only with the second kind. It exists purely to help the agent evolve alongside the human, not to manage the environments the agent interacts with. That separation is what keeps it lean. A state file, a tree structure, explicit commit semantics, and a way to inject accumulated context into each session. That's it. claude-quest is a simple implementation of this essence in software form.
+
+The entire project is roughly 1,200 lines of code. This is intentional. Users configure Claude Code in arbitrarily many ways: custom MCP servers, specific tool permissions, esoteric git workflows, project-specific CLAUDE.md files, hooks, skills, environment variables, and whatever else emerges. The space of how users work and what they bring to their setup is vast and varied. claude-quest never intrudes into any of it. The only thing it does at runtime is inject a shim so that if the user wants to record and carry forward anything important for long-horizon collaboration, they can. It does not opinion on how you structure your codebase, how you configure Claude, what tools you allow, or what style you work in. Everything about the user's setup stays exactly as it is. claude-quest sits alongside it, not on top of it.
+
+This means users can use quests for whatever they want. Curate detailed state that shapes every session. Or keep state minimal and just use the log as a record of what happened with the agent over time. Attach elaborate artifacts or attach nothing. The abstraction enables long-horizon collaboration without prescribing what that collaboration looks like. The user paints the reality the agent operates in. claude-quest just makes sure that reality persists.
 
 ## The exploration-to-exploitation pipeline
 

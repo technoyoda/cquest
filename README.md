@@ -9,9 +9,9 @@
 <details>
 <summary>Read more</summary>
 
-Every token in a language model's context shapes how it searches for solutions. Context isn't decoration; it is the computational substrate. The way information is organized around a task determines how effectively the model works for you.
+Every token in a language model's context shapes how it searches for solutions. Context isn't decoration; it is the [computational substrate](docs/philosophy.md#the-computational-premise). The way information is organized around a task determines how effectively the model works for you.
 
-As projects evolve, the humans working on them develop a deeper and better understanding of the problem space. The agents that these humans work with, the instances of "Claude" they manage, need to evolve with that newer understanding. When the human learns something, the agent should know it too. When the human's mental model shifts, the agent's context should shift with it.
+As projects evolve, the humans working on them develop a deeper and better understanding of the problem space. The agents that these humans work with, the instances of "Claude" they manage, need to evolve with that newer understanding. When the human learns something, the agent should know it too. When the human's mental model shifts, the agent's context should [shift with it](docs/philosophy.md#why-explicit-control).
 
 </details>
 
@@ -22,11 +22,11 @@ As projects evolve, the humans working on them develop a deeper and better under
 <details>
 <summary>Read more</summary>
 
-Think of a game where you're on a quest. There's an NPC companion traveling with you. As you make decisions, explore new areas, and learn about the world, the NPC adapts: it nudges you based on what you've discovered together, recalls past encounters, warns you about things you've already tried. The NPC's usefulness comes from the fact that it evolves with you through the quest.
+Think of a game where you're on a quest. There's an NPC companion traveling with you. As you make decisions, explore new areas, and learn about the world, the NPC adapts: it nudges you based on what you've discovered together, recalls past encounters, warns you about things you've already tried. The NPC's usefulness comes from the fact that it [evolves with you through the quest](docs/philosophy.md#the-quest-metaphor).
 
 The same philosophy applies here. Every time a human and Claude work together on something that spans more than a single session, they are going on a quest. Claude is the companion NPC. It evolves alongside the human: accumulating what they've learned together, forgetting what's no longer relevant, carrying forward what matters for where things are heading next.
 
-But unlike a game NPC that updates automatically, the evolution here is explicit. The human holds the long-horizon policy. Claude operates within a single session. The human operates across the arc of the quest, across dozens or hundreds of sessions over weeks and months. The person who knows where the quest is going decides what their companion needs to remember, what to prune, and how the shared knowledge should be restructured as understanding deepens.
+But unlike a game NPC that updates automatically, the [evolution here is explicit](docs/philosophy.md#why-explicit-control). The human holds the long-horizon policy. Claude operates within a single session. The human operates across the arc of the quest, across dozens or hundreds of sessions over weeks and months. The person who knows where the quest is going decides what their companion needs to remember, [what to prune](docs/philosophy.md#why-explicit-control), and how the shared knowledge should be restructured as understanding deepens.
 
 For the full reasoning, see [docs/philosophy.md](docs/philosophy.md).
 
@@ -39,11 +39,11 @@ For the full reasoning, see [docs/philosophy.md](docs/philosophy.md).
 <details>
 <summary>Read more</summary>
 
-`claude-quest` wraps the `claude` process. Because it wraps the process, it can do a few useful things: inject the quest's accumulated state into Claude's system prompt, set environment variables so Claude can call quest commands (committing state, attaching files, logging milestones) without needing to know internal IDs, and clean up staged snapshots when the session ends.
+`claude-quest` wraps the `claude` process. Because it wraps the process, it can do a few useful things: inject the quest's accumulated state into Claude's system prompt, set [environment variables](#in-session-operations) so Claude can call quest commands (committing state, attaching files, logging milestones) without needing to know internal IDs, and clean up staged snapshots when the session ends.
 
-When you start a session, `state.md` is injected as background context. During the session, the human decides when to crystallize knowledge by telling Claude to commit. State gets updated, a log entry records what happened and why, and next session Claude starts with the evolved context. The quest remembers so you don't have to re-explain.
+When you start a session, [`state.md`](#state-and-logs) is injected as background context. During the session, the human decides when to crystallize knowledge by telling Claude to commit. State gets updated, a log entry records what happened and why, and next session Claude starts with the evolved context. The quest remembers so you don't have to re-explain.
 
-Quests branch into side quests for focused exploration and merge back when findings are ready. Every commit is version-controlled. The tool is deliberately lean: a state file, a log, a tree, explicit commits, and system prompt injection.
+Quests [branch into side quests](#branching-and-forking) for focused exploration and merge back when findings are ready. Every commit is [version-controlled](#version-history). The tool is [deliberately lean](docs/philosophy.md#form-and-essence): a state file, a log, a tree, explicit commits, and system prompt injection.
 
 </details>
 

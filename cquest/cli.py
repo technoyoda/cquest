@@ -432,7 +432,38 @@ def attach(file: str, quest: str | None):
     dest_dir.mkdir(parents=True, exist_ok=True)
     dest = dest_dir / src.name
     shutil.copy2(src, dest)
+    state.git_commit(quest_id, f"attach: {src.name}")
     console.print(f"[green]Attached[/green] {src.name} → [dim]{dest}[/dim]")
+
+
+@cli.command()
+@click.argument("filename")
+@click.option("--quest", "-q", default=None, help="Quest ID (reads CLAUDE_QUEST_ID from env if omitted).")
+def detach(filename: str, quest: str | None):
+    """Remove a file from the quest's files/ directory.
+
+    Use this to shed knowledge that is no longer relevant as the quest evolves.
+    The removal is version-controlled so it appears in quest history.
+    """
+    quest_id = quest or os.environ.get("CLAUDE_QUEST_ID")
+    if not quest_id:
+        console.print("[red]No quest specified. Use --quest or set CLAUDE_QUEST_ID.[/red]")
+        raise SystemExit(1)
+
+    try:
+        state.get_quest(quest_id)
+    except FileNotFoundError:
+        console.print(f"[red]Quest '{quest_id}' not found.[/red]")
+        raise SystemExit(1)
+
+    target = state.get_files_dir(quest_id) / filename
+    if not target.exists():
+        console.print(f"[red]File '{filename}' not found in quest files.[/red]")
+        raise SystemExit(1)
+
+    target.unlink()
+    state.git_commit(quest_id, f"detach: {filename}")
+    console.print(f"[yellow]Detached[/yellow] {filename}")
 
 
 @cli.command()

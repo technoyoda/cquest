@@ -109,7 +109,7 @@ To read another quest's contents, use `cquest dump <name|id>` to copy it into th
 
 ## Quest Commands Reference
 
-**NEVER run these unless the user explicitly asks you to.** Do not auto-commit, auto-attach, auto-merge, or auto-dump.
+**NEVER run these unless the user explicitly asks you to.** Do not auto-commit, auto-attach, auto-detach, auto-merge, or auto-dump.
 
 **State workflow:** Edit `{local_dir_name}/state.md` directly, commit via `cquest commit --state "$(cat {local_dir_name}/state.md)"`. Prefer surgical edits over full rewrites.
 
@@ -125,6 +125,7 @@ To read another quest's contents, use `cquest dump <name|id>` to copy it into th
 | `cquest dump <id>` | Dump a quest's contents into CWD for reading |
 | `cquest dump <id> --state --log` | Dump only specific files |
 | `cquest attach <file>` | Save a file to quest storage |
+| `cquest detach <filename>` | Remove a file from quest storage |
 | `cquest rename {meta.id} "name"` | Rename this quest |
 | `cquest describe {meta.id} --set "desc"` | Set description |
 | `cquest tree` | Show quest tree |

@@ -141,6 +141,7 @@ All session launchers support:
 | `cquest dump <name\|id>` | Dump quest contents into CWD for reading |
 | `cquest dump <name\|id> --state --log` | Dump only specific files |
 | `cquest attach <file> [-q id]` | Copy file into quest's files/ directory |
+| `cquest detach <filename> [-q id]` | Remove a file from quest's files/ directory |
 | `cquest rename <name\|id> <new-name>` | Rename any quest |
 | `cquest describe <name\|id> --set "..."` | Set quest description |
 | `cquest delete <name\|id> [-f]` | Delete a quest and its children |

@@ -281,7 +281,11 @@ To merge a side quest back: dump it (`cquest dump <id>`), synthesize its finding
 
 ### Name uniqueness
 
-Quest names must be unique. `new`, `side`, and `rename` will reject duplicate names.
+Quest names are the human-facing abstraction for identifying work. IDs are internal plumbing. Sessions are ephemeral. The name is what persists as the handle through which you think about and refer to a quest. It represents the direction of the work: "build-rl-agent", "migrate-to-v2", "reward-shaping-experiment."
+
+Names must be unique because they are the first-class identifier. Every command that accepts a quest reference (`go`, `side --from`, `dump`, `status`) resolves by name. If two quests shared a name, you could not unambiguously refer to them, and the human-facing abstraction breaks.
+
+Names can change (`cquest rename`) because the direction of work can change. A quest that started as "prototype-x" might become "production-x" after the approach proves out. That is normal. The name evolves with the quest. `new`, `side`, and `rename` enforce uniqueness.
 
 ### Version history
 

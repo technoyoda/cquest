@@ -68,9 +68,7 @@ Quests [branch into side quests](#branching-and-forking) for focused exploration
 ## Install
 
 ```bash
-conda activate aft-poc
-cd cquest
-pip install -e .
+pip install git+https://github.com/technoyoda/cquest.git
 ```
 
 ## Quick Start

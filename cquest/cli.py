@@ -18,7 +18,7 @@ console = Console()
 
 @click.group()
 def cli():
-    """claude-quest: Manage longitudinal project context across Claude Code sessions."""
+    """cquest: Manage longitudinal project context across Claude Code sessions."""
     pass
 
 
@@ -71,7 +71,7 @@ def go(id_or_name: str | None, resume: bool, system_prompt: str | None, prompt_m
     if id_or_name is None:
         active = state.get_active()
         if active is None:
-            console.print("[red]No active quest. Specify a quest name/id or create one with 'claude-quest new'.[/red]")
+            console.print("[red]No active quest. Specify a quest name/id or create one with 'cquest new'.[/red]")
             raise SystemExit(1)
         meta = active
     else:
@@ -180,7 +180,7 @@ def side(name: str | None, from_quest: str | None, fork: bool, system_prompt: st
     else:
         source = state.get_active()
         if source is None:
-            console.print("[red]No active quest. Use --from <quest> or create one with 'claude-quest new' first.[/red]")
+            console.print("[red]No active quest. Use --from <quest> or create one with 'cquest new' first.[/red]")
             raise SystemExit(1)
 
     prefix = "fork" if fork else "side"

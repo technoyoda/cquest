@@ -1,4 +1,5 @@
-# claude-quest
+# cquest 
+_aka **claude-quest**_
 
 > Making claude useful for very long time horizon collaborative problem solving
 
@@ -56,7 +57,7 @@ For the full reasoning, see [docs/philosophy.md](docs/philosophy.md).
 <details>
 <summary>Read more</summary>
 
-`claude-quest` wraps the `claude` process. Because it wraps the process, it can do a few useful things: inject the quest's accumulated state into Claude's system prompt, set [environment variables](#in-session-operations) so Claude can call quest commands (committing state, attaching files, logging milestones) without needing to know internal IDs, and clean up staged snapshots when the session ends.
+`cquest` wraps the `claude` process. Because it wraps the process, it can do a few useful things: inject the quest's accumulated state into Claude's system prompt, set [environment variables](#in-session-operations) so Claude can call quest commands (committing state, attaching files, logging milestones) without needing to know internal IDs, and clean up staged snapshots when the session ends.
 
 When you start a session, [`state.md`](#state-and-logs) is injected as background context. During the session, the human decides when to crystallize knowledge by telling Claude to commit. State gets updated, a log entry records what happened and why, and next session Claude starts with the evolved context. The quest remembers so you don't have to re-explain.
 
@@ -68,7 +69,7 @@ Quests [branch into side quests](#branching-and-forking) for focused exploration
 
 ```bash
 conda activate aft-poc
-cd claude-quest
+cd cquest
 pip install -e .
 ```
 
@@ -76,30 +77,30 @@ pip install -e .
 
 ```bash
 # Start a new quest — creates state, launches Claude
-claude-quest new "build-rl-agent"
+cquest new "build-rl-agent"
 
 # Resume the active quest (fresh session)
-claude-quest go
+cquest go
 
 # Resume a specific quest by name
-claude-quest go build-rl-agent
+cquest go build-rl-agent
 
 # Continue the last conversation (claude session) where you left off
-claude-quest go build-rl-agent -r
+cquest go build-rl-agent -r
 
 # Resume with extra flags passed through to claude
-claude-quest go build-rl-agent -- --model sonnet
+cquest go build-rl-agent -- --model sonnet
 
 # Resume with an additional system prompt
-claude-quest go build-rl-agent -s "Focus on the reward function today"
+cquest go build-rl-agent -s "Focus on the reward function today"
 
 # Fork a side quest from the active quest
-claude-quest side
-claude-quest side -n "reward-shaping"
+cquest side
+cquest side -n "reward-shaping"
 
 # Combine system prompt and passthrough flags
-claude-quest new "my-project" -s "You are an expert in Rust" -- --model sonnet
-claude-quest side -n "experiment" -s "Try a different approach" -- --allowedTools "Bash,Read"
+cquest new "my-project" -s "You are an expert in Rust" -- --model sonnet
+cquest side -n "experiment" -s "Try a different approach" -- --allowedTools "Bash,Read"
 ```
 
 ## Commands
@@ -113,11 +114,11 @@ All session launchers support:
 
 | Command | Description |
 |---|---|
-| `claude-quest new <name>` | Create a root quest, set active, launch Claude |
-| `claude-quest go [name\|id]` | Resume a quest and launch new claude session |
-| `claude-quest go [name\|id] -r` | Resume quest and continue from last claude session |
-| `claude-quest side [-n name] [--from quest]` | Branch a side quest (child) from a quest, launch Claude |
-| `claude-quest side [-n name] [--from quest] --fork` | Fork as independent root — copies state but no parent link |
+| `cquest new <name>` | Create a root quest, set active, launch Claude |
+| `cquest go [name\|id]` | Resume a quest and launch new claude session |
+| `cquest go [name\|id] -r` | Resume quest and continue from last claude session |
+| `cquest side [-n name] [--from quest]` | Branch a side quest (child) from a quest, launch Claude |
+| `cquest side [-n name] [--from quest] --fork` | Fork as independent root — copies state but no parent link |
 
 *-s* will add to the SYSTEM PROMPT given to claude. The state saved on `commit` commands run by claude is also adding to the system prompt.
 
@@ -125,44 +126,44 @@ All session launchers support:
 
 | Command | Description |
 |---|---|
-| `claude-quest status [name\|id]` | Show quest details (default: active) |
-| `claude-quest tree [name\|id]` | Print quest tree with timestamps |
-| `claude-quest list` | List all root quests |
-| `claude-quest log [name\|id]` | Show session log |
-| `claude-quest describe [name\|id]` | Show quest description |
-| `claude-quest history [name\|id] [-n 20]` | Show version history |
+| `cquest status [name\|id]` | Show quest details (default: active) |
+| `cquest tree [name\|id]` | Print quest tree with timestamps |
+| `cquest list` | List all root quests |
+| `cquest log [name\|id]` | Show session log |
+| `cquest describe [name\|id]` | Show quest description |
+| `cquest history [name\|id] [-n 20]` | Show version history |
 
 ### Write operations
 
 | Command | Description |
 |---|---|
-| `claude-quest commit --state "..."` | Persist state.md to global store |
-| `claude-quest commit --log "..."` | Append entry to log.md |
-| `claude-quest merge <name\|id>` | Mark a quest as merged |
-| `claude-quest dump <name\|id>` | Dump quest contents into CWD for reading |
-| `claude-quest dump <name\|id> --state --log` | Dump only specific files |
-| `claude-quest attach <file> [-q id]` | Copy file into quest's files/ directory |
-| `claude-quest rename <name\|id> <new-name>` | Rename any quest |
-| `claude-quest describe <name\|id> --set "..."` | Set quest description |
-| `claude-quest delete <name\|id> [-f]` | Delete a quest and its children |
-| `claude-quest restore <commit-hash> [-q id] [-f]` | Restore quest to a specific version (forward commit) |
+| `cquest commit --state "..."` | Persist state.md to global store |
+| `cquest commit --log "..."` | Append entry to log.md |
+| `cquest merge <name\|id>` | Mark a quest as merged |
+| `cquest dump <name\|id>` | Dump quest contents into CWD for reading |
+| `cquest dump <name\|id> --state --log` | Dump only specific files |
+| `cquest attach <file> [-q id]` | Copy file into quest's files/ directory |
+| `cquest rename <name\|id> <new-name>` | Rename any quest |
+| `cquest describe <name\|id> --set "..."` | Set quest description |
+| `cquest delete <name\|id> [-f]` | Delete a quest and its children |
+| `cquest restore <commit-hash> [-q id] [-f]` | Restore quest to a specific version (forward commit) |
 
 ### Export / Import
 
 | Command | Description |
 |---|---|
-| `claude-quest export <name\|id>` | Export a single quest as `.tar.gz` |
-| `claude-quest export <name\|id> --tree` | Export the full quest tree (all quests sharing the same root) |
-| `claude-quest export --all` | Export all quests |
-| `claude-quest import <archive.tar.gz>` | Import quests from archive |
-| `claude-quest import <archive.tar.gz> -f` | Import and overwrite on ID collision |
+| `cquest export <name\|id>` | Export a single quest as `.tar.gz` |
+| `cquest export <name\|id> --tree` | Export the full quest tree (all quests sharing the same root) |
+| `cquest export --all` | Export all quests |
+| `cquest import <archive.tar.gz>` | Import quests from archive |
+| `cquest import <archive.tar.gz> -f` | Import and overwrite on ID collision |
 
 ```bash
 # Export a tree to share with someone
-claude-quest export my-project --tree -o my-project.tar.gz
+cquest export my-project --tree -o my-project.tar.gz
 
 # Import on another machine
-claude-quest import my-project.tar.gz
+cquest import my-project.tar.gz
 ```
 
 Exported quests are self-contained. Lineage (`root`/`parent` references) survives export/import because the whole family travels together. Importing a single quest without its parent creates an orphan — fully usable, just labeled `(orphan)` in tree/list output.
@@ -174,7 +175,7 @@ Exported quests are self-contained. Lineage (`root`/`parent` references) survive
 ```
 1. STAGE    .quest-<name>/ snapshot into CWD (read-only context for Claude)
 2. LAUNCH   claude --append-system-prompt <quest context + optional extra prompt>
-3. SESSION  Claude reads .quest-<name>/, mutates via `claude-quest` CLI commands
+3. SESSION  Claude reads .quest-<name>/, mutates via `cquest` CLI commands
 4. EXIT     .quest-<name>/ wiped from CWD
 ```
 
@@ -196,7 +197,7 @@ Claude reads from .quest-<name>/
 Claude writes via CLI commands → directly to ~/.quests/
 ```
 
-The snapshot is a read-only dump of quest state so Claude never leaves the user's working directory. All mutations go through `claude-quest` CLI commands which write directly to `~/.quests/`.
+The snapshot is a read-only dump of quest state so Claude never leaves the user's working directory. All mutations go through `cquest` CLI commands which write directly to `~/.quests/`.
 
 ### Global store layout
 
@@ -217,20 +218,20 @@ When a quest session is running, Claude has the quest's accumulated state as bac
 
 1. You and Claude work on the task at hand (writing code, researching, debugging, etc.)
 2. When something worth preserving emerges, you tell Claude to commit it: *"commit state"* or *"log that we decided to use approach X"*
-3. Claude runs the `claude-quest commit` command with the updated content
+3. Claude runs the `cquest commit` command with the updated content
 4. You continue working. Repeat as needed.
 
 Claude never auto-commits, auto-logs, or auto-attaches. You decide when knowledge crystallizes.
 
 The available in-session commands:
 
-- **Commit state**: `claude-quest commit --state "..." --log "..."`
-- **Attach files**: `claude-quest attach <file>`
-- **Dump another quest**: `claude-quest dump <name|id>` — copies into CWD for reading, clean up when done
-- **Merge side quest**: Dump it, synthesize state, commit, then `claude-quest merge <child-id>`
-- **Rename/describe**: `claude-quest rename`, `claude-quest describe --set`
+- **Commit state**: `cquest commit --state "..." --log "..."`
+- **Attach files**: `cquest attach <file>`
+- **Dump another quest**: `cquest dump <name|id>` — copies into CWD for reading, clean up when done
+- **Merge side quest**: Dump it, synthesize state, commit, then `cquest merge <child-id>`
+- **Rename/describe**: `cquest rename`, `cquest describe --set`
 
-Environment variables (`CLAUDE_QUEST_ID`, `CLAUDE_QUEST_NAME`, etc.) are set automatically so commands like `claude-quest commit` and `claude-quest attach` know which quest to target without arguments.
+Environment variables (`CLAUDE_QUEST_ID`, `CLAUDE_QUEST_NAME`, etc.) are set automatically so commands like `cquest commit` and `cquest attach` know which quest to target without arguments.
 
 ### State and logs
 
@@ -242,10 +243,10 @@ A quest has two files that capture its evolution: `state.md` and `log.md`. They 
 
 ```bash
 # Commit both state and a log entry in one call
-claude-quest commit --state "$(cat .quest-myproject/state.md)" --log "Finished migrating to new API. Old endpoints removed."
+cquest commit --state "$(cat .quest-myproject/state.md)" --log "Finished migrating to new API. Old endpoints removed."
 
 # Just log a milestone without changing state
-claude-quest commit --log "Explored approach B. Dead end — failed to repro bug."
+cquest commit --log "Explored approach B. Dead end — failed to repro bug."
 ```
 
 The log is especially valuable when returning to a quest after a long break or when merging side quests. It answers "what happened and why" without cluttering the state that Claude reads every session.
@@ -260,15 +261,15 @@ Both copy `state.md`, `log.md`, and `files/` from the source quest.
 
 ```bash
 # Side quest: branches under project-x
-claude-quest side -n "experiment-a"
+cquest side -n "experiment-a"
 
 # Side quest from a specific quest (not just active quest in cwd)
-claude-quest side -n "experiment-b" --from project-x
+cquest side -n "experiment-b" --from project-x
 
 # Fork: independent root with project-x's state
-claude-quest side -n "project-x-v2" --from project-x --fork
+cquest side -n "project-x-v2" --from project-x --fork
 
-claude-quest tree
+cquest tree
 
 └── ● project-x (a1b2c3)
     ├── ● experiment-a (d4e5f6)
@@ -276,7 +277,7 @@ claude-quest tree
 ● project-x-v2 (j0k1l2)              # independent root
 ```
 
-To merge a side quest back: dump it (`claude-quest dump <id>`), synthesize its findings into the parent's state, commit, then mark it merged (`claude-quest merge <id>`).
+To merge a side quest back: dump it (`cquest dump <id>`), synthesize its findings into the parent's state, commit, then mark it merged (`cquest merge <id>`).
 
 ### Name uniqueness
 
@@ -284,14 +285,14 @@ Quest names must be unique. `new`, `side`, and `rename` will reject duplicate na
 
 ### Version history
 
-Every `claude-quest commit` automatically creates a git commit inside the quest directory (`~/.quests/quests/<id>/.git`). History only moves forward — no rewrites, no rebase.
+Every `cquest commit` automatically creates a git commit inside the quest directory (`~/.quests/quests/<id>/.git`). History only moves forward — no rewrites, no rebase.
 
 ```bash
 # See version history
-claude-quest history my-project
+cquest history my-project
 
 # Restore to a previous version (creates a new forward commit)
-claude-quest restore abc1234 -q my-project-id
+cquest restore abc1234 -q my-project-id
 ```
 
 Side quests start with a fresh git history — they don't inherit the parent's commits.
@@ -304,10 +305,10 @@ The `files/` knowledge base has **no size limit**. Detailed research, artifacts,
 
 ```bash
 # Default: 80KB state budget
-claude-quest go my-project
+cquest go my-project
 
 # Larger budget for models with bigger context windows
-claude-quest go my-project --max-state-size 150
+cquest go my-project --max-state-size 150
 ```
 
 ## meta.json schema

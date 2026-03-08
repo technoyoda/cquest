@@ -5,7 +5,7 @@ Every quest has git-versioned history. You can see how state changed over time w
 ## See the timeline
 
 ```bash
-claude-quest history
+cquest history
 ```
 ```
 Hash     Date                 Message
@@ -17,8 +17,8 @@ e1c4d8   2026-03-03T23:15    commit: state
 ## Read state at any point
 
 ```bash
-claude-quest show a3f7b2          # state.md + log.md at that version
-claude-quest show a3f7b2 -f state.md   # just state.md
+cquest show a3f7b2          # state.md + log.md at that version
+cquest show a3f7b2 -f state.md   # just state.md
 ```
 
 ## Compare two points
@@ -26,8 +26,8 @@ claude-quest show a3f7b2 -f state.md   # just state.md
 Dump state from two versions and diff them:
 
 ```bash
-claude-quest show a3f7b2 -f state.md > /tmp/before.md
-claude-quest show 9b2f01 -f state.md > /tmp/after.md
+cquest show a3f7b2 -f state.md > /tmp/before.md
+cquest show 9b2f01 -f state.md > /tmp/after.md
 diff /tmp/before.md /tmp/after.md
 ```
 
@@ -36,7 +36,7 @@ That's it. History is date-ordered, so Claude can reason about which versions to
 ## Roll back if needed
 
 ```bash
-claude-quest restore a3f7b2   # creates a new forward commit with old state
+cquest restore a3f7b2   # creates a new forward commit with old state
 ```
 
 History only moves forward — restore doesn't erase anything.

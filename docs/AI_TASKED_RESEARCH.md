@@ -2,13 +2,13 @@
 
 *[fully ai generated]*
 
-## Closest to claude-quest (long-horizon context persistence)
+## Closest to cquest (long-horizon context persistence)
 
-**[cc-sessions](https://github.com/GWUDCAP/cc-sessions)** — The most similar in spirit. Tasks are markdown files with frontmatter that persist through session restarts. Every task gets its own git branch. Has a "Context Gathering Agent" that builds context manifests so Claude doesn't re-learn things. Opinionated: enforces discussion-before-implementation via hooks. Key difference from claude-quest: it's task-centric (one branch per task), not quest-centric (evolving knowledge container). No branching/merging of context itself.
+**[cc-sessions](https://github.com/GWUDCAP/cc-sessions)** — The most similar in spirit. Tasks are markdown files with frontmatter that persist through session restarts. Every task gets its own git branch. Has a "Context Gathering Agent" that builds context manifests so Claude doesn't re-learn things. Opinionated: enforces discussion-before-implementation via hooks. Key difference from cquest: it's task-centric (one branch per task), not quest-centric (evolving knowledge container). No branching/merging of context itself.
 
 **[Continuous-Claude-v3](https://github.com/parcadei/Continuous-Claude-v3)** — Maintains state via "ledgers and handoffs." Agent orchestration with isolated context windows. MCP-based. More about preventing context pollution in multi-agent setups than about long-horizon human-directed evolution.
 
-**[Context Mode](https://github.com/mksglu/context-mode)** — Captures every session event into a per-project SQLite database. Auto-rebuilds working state on resume or compaction. Interesting approach but automatic, not human-curated. The opposite philosophy from claude-quest on who decides what to remember.
+**[Context Mode](https://github.com/mksglu/context-mode)** — Captures every session event into a per-project SQLite database. Auto-rebuilds working state on resume or compaction. Interesting approach but automatic, not human-curated. The opposite philosophy from cquest on who decides what to remember.
 
 ## Context/memory layers (not Claude-specific)
 
@@ -32,7 +32,7 @@
 - **Session memory** (v2.1.30+) — "Recalled/Wrote memories" across sessions. Automatic, not curated.
 - **Compaction API** — Server-side context summarization for long conversations. Addresses context window limits, not knowledge persistence.
 
-## Where claude-quest is different
+## Where cquest is different
 
 None of these tools have the combination of:
 1. **Human-curated state evolution** (explicit commit, never auto)
@@ -41,7 +41,7 @@ None of these tools have the combination of:
 4. **Version-controlled state history** (git inside the quest, rollback, diff)
 5. **State size budgeting** (deliberate context window management)
 
-The closest philosophical neighbor is cc-sessions, but it's task-oriented (finite, completable) rather than quest-oriented (evolving, open-ended). Most other tools lean automatic where claude-quest leans explicit.
+The closest philosophical neighbor is cc-sessions, but it's task-oriented (finite, completable) rather than quest-oriented (evolving, open-ended). Most other tools lean automatic where cquest leans explicit.
 
 ## Sources
 

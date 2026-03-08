@@ -105,33 +105,33 @@ A read-only snapshot is at `{local_dir_name}/` in your working directory:
   meta.json, state.md, log.md, files/
 ```
 
-To read another quest's contents, use `claude-quest dump <name|id>` to copy it into the working directory.
+To read another quest's contents, use `cquest dump <name|id>` to copy it into the working directory.
 
 ## Quest Commands Reference
 
 **NEVER run these unless the user explicitly asks you to.** Do not auto-commit, auto-attach, auto-merge, or auto-dump.
 
-**State workflow:** Edit `{local_dir_name}/state.md` directly, commit via `claude-quest commit --state "$(cat {local_dir_name}/state.md)"`. Prefer surgical edits over full rewrites.
+**State workflow:** Edit `{local_dir_name}/state.md` directly, commit via `cquest commit --state "$(cat {local_dir_name}/state.md)"`. Prefer surgical edits over full rewrites.
 
-**State size budget:** state.md is currently {state_size_kb:.1f}KB of {max_state_kb}KB. Do NOT mention size or nudge the user about it unless state exceeds 2/3 of the limit ({max_state_kb * 2 // 3}KB). Beyond that, suggest summarizing or moving detail to attached files (`claude-quest attach`). The limit is a recommendation, not a hard rule.
+**State size budget:** state.md is currently {state_size_kb:.1f}KB of {max_state_kb}KB. Do NOT mention size or nudge the user about it unless state exceeds 2/3 of the limit ({max_state_kb * 2 // 3}KB). Beyond that, suggest summarizing or moving detail to attached files (`cquest attach`). The limit is a recommendation, not a hard rule.
 
 **Dumped snapshots are temporary.** When you dump another quest's content for reference, clean up the `.quest-<name>/` directory (rm -rf) once you're done reading it. Don't leave dumped snapshots lying around.
 
 | Command | What it does |
 |---|---|
-| `claude-quest commit --state "$(cat {local_dir_name}/state.md)"` | Commit state from edited file |
-| `claude-quest commit --log "..."` | Append to log.md |
-| `claude-quest merge <id>` | Mark a quest as merged |
-| `claude-quest dump <id>` | Dump a quest's contents into CWD for reading |
-| `claude-quest dump <id> --state --log` | Dump only specific files |
-| `claude-quest attach <file>` | Save a file to quest storage |
-| `claude-quest rename {meta.id} "name"` | Rename this quest |
-| `claude-quest describe {meta.id} --set "desc"` | Set description |
-| `claude-quest tree` | Show quest tree |
-| `claude-quest status` | Show quest details |
-| `claude-quest history` | Show version history |
-| `claude-quest show <hash>` | Inspect contents at a specific version |
-| `claude-quest restore <hash>` | Restore to a specific version (forward commit) |
+| `cquest commit --state "$(cat {local_dir_name}/state.md)"` | Commit state from edited file |
+| `cquest commit --log "..."` | Append to log.md |
+| `cquest merge <id>` | Mark a quest as merged |
+| `cquest dump <id>` | Dump a quest's contents into CWD for reading |
+| `cquest dump <id> --state --log` | Dump only specific files |
+| `cquest attach <file>` | Save a file to quest storage |
+| `cquest rename {meta.id} "name"` | Rename this quest |
+| `cquest describe {meta.id} --set "desc"` | Set description |
+| `cquest tree` | Show quest tree |
+| `cquest status` | Show quest details |
+| `cquest history` | Show version history |
+| `cquest show <hash>` | Inspect contents at a specific version |
+| `cquest restore <hash>` | Restore to a specific version (forward commit) |
 """
     return prompt
 
@@ -163,7 +163,7 @@ def launch_claude(
             if arg in BLOCKED_ARGS:
                 console.print(
                     f"[red]Cannot pass '{arg}' as a claude flag.[/red]\n"
-                    f"Use [bold]-s / --system-prompt[/bold] on the claude-quest command instead."
+                    f"Use [bold]-s / --system-prompt[/bold] on the cquest command instead."
                 )
                 raise SystemExit(1)
 
@@ -185,14 +185,14 @@ def launch_claude(
 
     # Auto-approve read operations and dump
     ALLOWED_TOOLS = [
-        "Bash(claude-quest status*)",
-        "Bash(claude-quest tree*)",
-        "Bash(claude-quest list*)",
-        "Bash(claude-quest log*)",
-        "Bash(claude-quest describe*)",
-        "Bash(claude-quest history*)",
-        "Bash(claude-quest show*)",
-        "Bash(claude-quest dump*)",
+        "Bash(cquest status*)",
+        "Bash(cquest tree*)",
+        "Bash(cquest list*)",
+        "Bash(cquest log*)",
+        "Bash(cquest describe*)",
+        "Bash(cquest history*)",
+        "Bash(cquest show*)",
+        "Bash(cquest dump*)",
     ]
 
     # Generate session ID unless user is resuming an existing session

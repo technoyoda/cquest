@@ -1,6 +1,6 @@
 # Resuming Conversations
 
-`claude-quest go -r` continues a previous Claude conversation instead of starting a fresh one.
+`cquest go -r` continues a previous Claude conversation instead of starting a fresh one.
 
 ## When to use it
 
@@ -12,10 +12,10 @@ Use `-r` when the conversation itself holds context that the quest state doesn't
 
 ```bash
 # Fresh session (default) — new conversation, quest state injected
-claude-quest go myquest
+cquest go myquest
 
 # Resume last conversation — picks up mid-thread, quest state also re-injected
-claude-quest go myquest -r
+cquest go myquest -r
 ```
 
 When `-r` is used:

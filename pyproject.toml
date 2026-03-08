@@ -3,7 +3,7 @@ requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "claude-quest"
+name = "cquest"
 version = "0.16.0"
 description = "Longitudinal project context manager for Claude Code sessions"
 requires-python = ">=3.11"
@@ -14,7 +14,7 @@ dependencies = [
 ]
 
 [project.scripts]
-claude-quest = "claude_quest.cli:cli"
+cquest = "cquest.cli:cli"
 
 [tool.setuptools.packages.find]
-include = ["claude_quest*"]
+include = ["cquest*"]

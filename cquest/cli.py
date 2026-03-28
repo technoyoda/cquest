@@ -792,7 +792,7 @@ def browse(id_or_name: str | None):
     inject = (
         f'\n<script>\n'
         f'// Auto-injected by cquest browse\n'
-        f'const _cqData = atob("{session_data_b64}");\n'
+        f'const _cqData = new TextDecoder().decode(Uint8Array.from(atob("{session_data_b64}"), c => c.charCodeAt(0)));\n'
         f'const _cqName = {json_mod.dumps(session_name)};\n'
         f'document.getElementById("landing").style.display = "none";\n'
         f'document.getElementById("viewer").style.display = "block";\n'

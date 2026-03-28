@@ -694,6 +694,121 @@ def history(quest: str | None, limit: int):
 
 
 @cli.command()
+@click.argument("id_or_name", required=False)
+def browse(id_or_name: str | None):
+    """Open a quest session transcript in the browser viewer.
+
+    Shows a session picker if the quest has multiple sessions.
+    """
+    import webbrowser
+    from datetime import datetime
+
+    if id_or_name is None:
+        meta = state.get_active()
+        if meta is None:
+            console.print("[red]No active quest. Specify a quest name/id.[/red]")
+            raise SystemExit(1)
+    else:
+        try:
+            meta = state.get_quest(id_or_name)
+        except FileNotFoundError:
+            console.print(f"[red]Quest '{id_or_name}' not found.[/red]")
+            raise SystemExit(1)
+
+    sessions = state.get_sessions(meta.id)
+    if not sessions:
+        console.print("[yellow]No sessions found for this quest.[/yellow]")
+        raise SystemExit(1)
+
+    # Sort most recent first
+    sessions = sorted(sessions, key=lambda s: s.get("timestamp", ""), reverse=True)
+
+    if len(sessions) == 1:
+        chosen = sessions[0]
+    else:
+        table = Table(show_header=True, padding=(0, 1, 0, 1))
+        table.add_column("#", justify="right", style="bold", no_wrap=True)
+        table.add_column("Session", style="dim", no_wrap=True)
+        table.add_column("Date", style="dim", no_wrap=True)
+        table.add_column("Cost", justify="right", style="green", no_wrap=True)
+
+        for i, s in enumerate(sessions, 1):
+            sid = s["session_id"]
+            ts_raw = s.get("timestamp", "")
+            if ts_raw:
+                try:
+                    dt = datetime.fromisoformat(ts_raw)
+                    date_str = dt.strftime("%b %-d, %H:%M")
+                except (ValueError, TypeError):
+                    date_str = ts_raw[:16]
+                rel = state._relative_time(ts_raw)
+                ts = f"{date_str} ({rel})"
+            else:
+                ts = "?"
+            transcript = state.find_transcript(sid)
+            if transcript:
+                usage = state.parse_transcript_usage(transcript)
+                cost = usage.get("cost_usd")
+                cost_str = f"${cost:.2f}" if cost is not None else "[dim]?[/dim]"
+            else:
+                cost_str = "[dim]—[/dim]"
+            table.add_row(str(i), sid[:8], ts, cost_str)
+
+        console.print(f"\n[bold]{meta.name}[/bold] — sessions:\n")
+        console.print(table)
+        choice = console.input(f"\nView session [bold][1][/bold]: ").strip()
+        if not choice:
+            choice = "1"
+        try:
+            idx = int(choice) - 1
+            if idx < 0 or idx >= len(sessions):
+                raise ValueError
+            chosen = sessions[idx]
+        except ValueError:
+            console.print("[red]Invalid choice.[/red]")
+            raise SystemExit(1)
+
+    transcript = state.find_transcript(chosen["session_id"])
+    if not transcript:
+        console.print(f"[red]Transcript not found for session {chosen['session_id'][:8]}.[/red]")
+        raise SystemExit(1)
+
+    # Build a self-contained HTML with the JSONL embedded
+    viewer_html = Path(__file__).parent / "session-viewer.html"
+    if not viewer_html.exists():
+        console.print("[red]session-viewer.html not found in cquest package.[/red]")
+        raise SystemExit(1)
+
+    import base64
+    import json as json_mod
+    import tempfile
+
+    viewer_src = viewer_html.read_text()
+    session_data_b64 = base64.b64encode(transcript.read_bytes()).decode('ascii')
+    session_name = f"{meta.name}_{chosen['session_id'][:8]}"
+
+    # Inject auto-load script right before </body>
+    # Base64 encode to avoid </script> in JSONL breaking the tag
+    inject = (
+        f'\n<script>\n'
+        f'// Auto-injected by cquest browse\n'
+        f'const _cqData = atob("{session_data_b64}");\n'
+        f'const _cqName = {json_mod.dumps(session_name)};\n'
+        f'document.getElementById("landing").style.display = "none";\n'
+        f'document.getElementById("viewer").style.display = "block";\n'
+        f'requestAnimationFrame(() => parseAndRender(_cqData, _cqName));\n'
+        f'</script>\n'
+    )
+    patched = viewer_src.replace('</body>', inject + '</body>')
+
+    tmp = Path(tempfile.mktemp(suffix='.html', prefix='cquest-browse-'))
+    tmp.write_text(patched)
+
+    console.print(f"[dim]Opening session {chosen['session_id'][:8]} in browser...[/dim]")
+    webbrowser.open(f"file://{tmp}")
+
+
+@cli.command()
 @click.argument("commit_hash")
 @click.option("--quest", "-q", default=None, help="Quest ID (reads CLAUDE_QUEST_ID from env if omitted).")
 @click.option("--file", "-f", "filename", default=None, help="Show a specific file (default: state.md and log.md).")

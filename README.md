@@ -130,6 +130,7 @@ All session launchers support:
 | `cquest log [name\|id]` | Show session log |
 | `cquest describe [name\|id]` | Show quest description |
 | `cquest history [name\|id] [-n 20]` | Show version history |
+| `cquest browse [name\|id]` | Open a session transcript in the browser viewer |
 
 ### Write operations
 

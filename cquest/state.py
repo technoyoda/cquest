@@ -242,10 +242,14 @@ def delete_quest(quest_id: str):
     if af.exists() and af.read_text().strip() == quest_id:
         af.unlink()
 
-    # Remove the quest directory
+    # Remove the quest directory (send to trash if available)
     qdir = _quest_dir(quest_id)
     if qdir.exists():
-        shutil.rmtree(qdir)
+        try:
+            from send2trash import send2trash
+            send2trash(str(qdir))
+        except ImportError:
+            shutil.rmtree(qdir)
 
 
 def update_meta(quest_id: str, **kwargs):

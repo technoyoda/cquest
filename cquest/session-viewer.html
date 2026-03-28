@@ -1,0 +1,1349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude Code Session Viewer</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --bg-secondary: #161b22;
+    --bg-tertiary: #1c2128;
+    --border: #30363d;
+    --border-light: #21262d;
+    --text: #e6edf3;
+    --text-muted: #8b949e;
+    --text-dim: #6e7681;
+    --accent-blue: #58a6ff;
+    --accent-purple: #bc8cff;
+    --accent-green: #3fb950;
+    --accent-orange: #d29922;
+    --accent-red: #f85149;
+    --accent-cyan: #39d353;
+    --user-bg: #1a2233;
+    --user-border: #1f6feb33;
+    --assistant-bg: #161b22;
+    --assistant-border: #30363d;
+    --tool-bg: #12171e;
+    --tool-border: #1f6feb44;
+    --result-bg: #0f1318;
+    --thinking-bg: #1a1525;
+    --thinking-border: #bc8cff33;
+    --system-bg: #1a1a12;
+    --system-border: #d2992244;
+    --code-bg: #0d1117;
+    --scrollbar-bg: #161b22;
+    --scrollbar-thumb: #30363d;
+    --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2);
+    --font-mono: 'SF Mono', 'Cascadia Code', 'Fira Code', 'JetBrains Mono', Consolas, monospace;
+    --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html {
+    font-size: 14px;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: var(--scrollbar-bg); }
+  ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+
+  /* ---- Landing / drop zone ---- */
+  #landing {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 2rem;
+  }
+
+  #landing h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 0.5rem;
+    letter-spacing: -0.02em;
+  }
+
+  #landing .subtitle {
+    color: var(--text-muted);
+    margin-bottom: 2.5rem;
+    font-size: 1rem;
+  }
+
+  .drop-zone {
+    width: 100%;
+    max-width: 560px;
+    border: 2px dashed var(--border);
+    border-radius: 12px;
+    padding: 3rem 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--bg-secondary);
+  }
+
+  .drop-zone:hover, .drop-zone.drag-over {
+    border-color: var(--accent-blue);
+    background: var(--user-bg);
+  }
+
+  .drop-zone .icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.6;
+  }
+
+  .drop-zone p {
+    color: var(--text-muted);
+    margin-bottom: 0.5rem;
+  }
+
+  .drop-zone .hint {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+  }
+
+  #file-input { display: none; }
+
+  .path-hint {
+    margin-top: 1.5rem;
+    padding: 1rem 1.5rem;
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    max-width: 560px;
+    word-break: break-all;
+    line-height: 1.8;
+  }
+
+  .path-hint code {
+    color: var(--accent-blue);
+    background: var(--bg);
+    padding: 2px 6px;
+    border-radius: 3px;
+  }
+
+  .copy-btn, .open-finder-btn {
+    display: inline-block;
+    margin-top: 0.3rem;
+    background: var(--bg);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    padding: 0.25rem 0.7rem;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-family: var(--font-sans);
+    transition: all 0.15s;
+    vertical-align: middle;
+  }
+
+  .copy-btn:hover, .open-finder-btn:hover {
+    background: var(--border);
+    color: var(--text);
+  }
+
+  .copy-btn.copied {
+    background: var(--accent-green);
+    color: #fff;
+    border-color: var(--accent-green);
+  }
+
+  .open-finder-btn {
+    margin-left: 0;
+    display: block;
+    margin-top: 0.5rem;
+    text-align: center;
+  }
+
+  /* ---- Viewer layout ---- */
+  #viewer { display: none; }
+
+  .top-bar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    padding: 0.6rem 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    backdrop-filter: blur(12px);
+  }
+
+  .top-bar .logo {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--accent-purple);
+    white-space: nowrap;
+  }
+
+  .top-bar .session-info {
+    flex: 1;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--font-mono);
+  }
+
+  .top-bar .stats {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+
+  .top-bar .stats .stat-val {
+    color: var(--text-muted);
+    font-weight: 600;
+  }
+
+  .top-bar button {
+    background: var(--bg-tertiary);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    padding: 0.35rem 0.85rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.78rem;
+    font-family: var(--font-sans);
+    transition: all 0.15s;
+  }
+
+  .top-bar button:hover {
+    background: var(--border);
+    color: var(--text);
+  }
+
+  .controls-row {
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-light);
+    padding: 0.4rem 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    font-size: 0.78rem;
+  }
+
+  .controls-row label {
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .controls-row input[type="checkbox"] {
+    accent-color: var(--accent-blue);
+  }
+
+  .controls-row .toggle-convo {
+    color: var(--accent-purple);
+    font-weight: 600;
+  }
+
+  .controls-row .controls-sep {
+    color: var(--border);
+    user-select: none;
+  }
+
+  .controls-row .detail-toggles {
+    display: contents;
+  }
+
+  .controls-row.convo-mode .detail-toggles-group {
+    opacity: 0.3;
+    pointer-events: none;
+  }
+
+  .font-size-label {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    white-space: nowrap;
+  }
+
+  .font-size-label input[type="range"] {
+    width: 80px;
+    accent-color: var(--accent-blue);
+  }
+
+  .search-group {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 0;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--bg);
+    transition: border-color 0.15s;
+  }
+
+  .search-group:focus-within {
+    border-color: var(--accent-blue);
+  }
+
+  .search-group .search-scope {
+    background: var(--bg-tertiary);
+    color: var(--text-muted);
+    border: none;
+    border-right: 1px solid var(--border);
+    padding: 0.3rem 0.5rem;
+    font-size: 0.75rem;
+    font-family: var(--font-sans);
+    outline: none;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%236e7681'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 6px center;
+    padding-right: 20px;
+  }
+
+  .search-group .search-scope:hover {
+    color: var(--text);
+  }
+
+  .search-group .search-box {
+    background: transparent;
+    border: none;
+    padding: 0.3rem 0.7rem;
+    color: var(--text);
+    font-size: 0.78rem;
+    font-family: var(--font-mono);
+    width: 200px;
+    outline: none;
+  }
+
+  .search-group .search-box::placeholder {
+    color: var(--text-dim);
+  }
+
+  /* ---- Messages ---- */
+  .messages {
+    max-width: 80ch;
+    margin: 0 auto;
+    padding: 1rem 1.5rem 4rem;
+  }
+
+  .msg {
+    margin: 0.6rem 0;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    overflow: hidden;
+    transition: opacity 0.2s;
+  }
+
+  .msg.hidden { display: none; }
+
+  .msg-header {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.5rem 0.9rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: default;
+  }
+
+  .msg-header .badge {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .msg-header .timestamp {
+    margin-left: auto;
+    font-weight: 400;
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+  }
+
+  .copy-btn {
+    background: var(--bg-tertiary);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 8px;
+    font-size: 0.68rem;
+    font-family: var(--font-sans);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+
+  .msg:hover .copy-btn { opacity: 1; }
+
+  .copy-btn:hover {
+    color: var(--text);
+    border-color: var(--accent-blue);
+  }
+
+  .copy-btn.copied {
+    opacity: 1;
+    color: var(--accent-green);
+    border-color: var(--accent-green);
+  }
+
+  .msg-body {
+    padding: 0.5rem 0.9rem 0.7rem;
+  }
+
+  /* User */
+  .msg.user {
+    background: var(--user-bg);
+    border-color: var(--user-border);
+  }
+
+  .msg.user .badge {
+    background: #1f6feb;
+    color: #fff;
+  }
+
+  /* Assistant text */
+  .msg.assistant {
+    background: var(--assistant-bg);
+    border-color: var(--assistant-border);
+  }
+
+  .msg.assistant .badge {
+    background: var(--accent-purple);
+    color: #fff;
+  }
+
+  .msg.assistant .msg-body {
+    font-size: 0.92rem;
+    line-height: 1.7;
+  }
+
+  /* Thinking */
+  .msg.thinking {
+    background: var(--thinking-bg);
+    border-color: var(--thinking-border);
+  }
+
+  .msg.thinking .badge {
+    background: #bc8cff44;
+    color: var(--accent-purple);
+  }
+
+  .msg.thinking .msg-body {
+    color: var(--text-muted);
+    font-style: italic;
+    font-size: 0.85rem;
+    max-height: 300px;
+    overflow-y: auto;
+  }
+
+  /* Tool use */
+  .msg.tool-use {
+    background: var(--tool-bg);
+    border-color: var(--tool-border);
+  }
+
+  .msg.tool-use .badge {
+    background: #1f6feb66;
+    color: var(--accent-blue);
+  }
+
+  .msg.tool-use .tool-name {
+    color: var(--accent-cyan);
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: 0.85rem;
+  }
+
+  .msg.tool-use .tool-input {
+    background: var(--code-bg);
+    border: 1px solid var(--border-light);
+    border-radius: 6px;
+    padding: 0.6rem 0.8rem;
+    margin-top: 0.4rem;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--text-muted);
+    max-height: 400px;
+    overflow-y: auto;
+  }
+
+  /* Tool result */
+  .msg.tool-result {
+    background: var(--result-bg);
+    border-color: var(--border-light);
+  }
+
+  .msg.tool-result .badge {
+    background: #3fb95033;
+    color: var(--accent-green);
+  }
+
+  .msg.tool-result .msg-body {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--text-muted);
+    max-height: 500px;
+    overflow-y: auto;
+  }
+
+  .msg.tool-result .msg-body.truncated::after {
+    content: '\n\n... (truncated — click to expand)';
+    color: var(--accent-blue);
+    cursor: pointer;
+  }
+
+  .msg.tool-result .msg-body.expanded {
+    max-height: none;
+  }
+
+  /* System */
+  .msg.system-msg {
+    background: var(--system-bg);
+    border-color: var(--system-border);
+  }
+
+  .msg.system-msg .badge {
+    background: #d2992233;
+    color: var(--accent-orange);
+  }
+
+  .msg.system-msg .msg-body {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+  }
+
+  /* Error in tool result */
+  .msg.tool-result.has-error {
+    border-color: #f8514933;
+  }
+
+  .msg.tool-result.has-error .badge {
+    background: #f8514933;
+    color: var(--accent-red);
+  }
+
+  /* ---- Markdown-ish rendering ---- */
+  .msg-body p { margin-bottom: 0.5rem; }
+  .msg-body p:last-child { margin-bottom: 0; }
+
+  .msg-body code {
+    font-family: var(--font-mono);
+    background: var(--bg);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 0.88em;
+    color: var(--accent-blue);
+  }
+
+  .msg-body pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border-light);
+    border-radius: 6px;
+    padding: 0.7rem 0.9rem;
+    margin: 0.5rem 0;
+    overflow-x: auto;
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    line-height: 1.5;
+  }
+
+  .msg-body pre code {
+    background: none;
+    padding: 0;
+    color: var(--text);
+  }
+
+  .msg-body h1, .msg-body h2, .msg-body h3 {
+    margin-top: 0.7rem;
+    margin-bottom: 0.3rem;
+    color: var(--text);
+  }
+
+  .msg-body h1 { font-size: 1.3rem; border-bottom: 1px solid var(--border); padding-bottom: 0.3rem; }
+  .msg-body h2 { font-size: 1.1rem; }
+  .msg-body h3 { font-size: 0.95rem; }
+
+  .msg-body ul, .msg-body ol {
+    padding-left: 1.5rem;
+    margin: 0.3rem 0;
+  }
+
+  .msg-body li { margin: 0.15rem 0; }
+
+  .msg-body strong { color: var(--text); }
+
+  .msg-body blockquote {
+    border-left: 3px solid var(--border);
+    padding-left: 0.8rem;
+    color: var(--text-muted);
+    margin: 0.4rem 0;
+  }
+
+  /* ---- Collapsible ---- */
+  .collapsible .msg-header {
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .collapsible .msg-header::before {
+    content: '▶';
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    transition: transform 0.15s;
+    display: inline-block;
+    width: 1rem;
+    text-align: center;
+  }
+
+  .collapsible.expanded .msg-header::before {
+    transform: rotate(90deg);
+  }
+
+  .collapsible .msg-body {
+    display: none;
+  }
+
+  .collapsible.expanded .msg-body {
+    display: block;
+  }
+
+  /* ---- Turn separator ---- */
+  .turn-sep {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    margin: 1.2rem 0 0.6rem;
+    color: var(--text-dim);
+    font-size: 0.72rem;
+    font-family: var(--font-mono);
+  }
+
+  .turn-sep::before, .turn-sep::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border-light);
+  }
+
+  /* ---- Loading ---- */
+  .loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem;
+    color: var(--text-muted);
+    font-size: 0.95rem;
+  }
+
+  .spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent-blue);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    margin-right: 0.8rem;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ---- Responsive ---- */
+  @media (max-width: 700px) {
+    .messages { padding: 0.5rem; }
+    .top-bar .stats { display: none; }
+    .controls-row .search-box { width: 140px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Landing screen -->
+<div id="landing">
+  <h1>Claude Code Session Viewer</h1>
+  <p class="subtitle">Drop a .jsonl session file to explore the conversation</p>
+
+  <div class="drop-zone" id="drop-zone">
+    <div class="icon">📂</div>
+    <p>Drop .jsonl file here or click to browse</p>
+    <p class="hint">Supports Claude Code session transcripts</p>
+  </div>
+  <input type="file" id="file-input" accept=".jsonl">
+
+  <div class="path-hint">
+    Session files live at:<br>
+    <code>~/.claude/projects/&lt;project-hash&gt;/&lt;session-id&gt;.jsonl</code>
+    <br><br>
+    Quick open from terminal:<br>
+    <code id="quick-cmd">open "session-viewer.html" && open ~/.claude/projects</code>
+    <button class="copy-btn" id="copy-cmd" title="Copy command">Copy</button>
+    <br><br>
+    Or open Finder to sessions folder:
+    <button class="open-finder-btn" id="open-finder">Open ~/.claude/projects in Finder</button>
+  </div>
+</div>
+
+<!-- Viewer -->
+<div id="viewer">
+  <div class="top-bar">
+    <span class="logo">◆ Session Viewer</span>
+    <span class="session-info" id="session-info"></span>
+    <div class="stats" id="stats"></div>
+    <button id="btn-new">Load Another</button>
+  </div>
+  <div class="controls-row">
+    <label class="toggle-convo"><input type="checkbox" id="convo-only"> Conversation Only</label>
+    <span class="controls-sep">|</span>
+    <label><input type="checkbox" id="show-thinking"> Thinking</label>
+    <label><input type="checkbox" id="show-tool-results" checked> Tool Results</label>
+    <label><input type="checkbox" id="show-system"> System</label>
+    <label><input type="checkbox" id="collapse-tools" checked> Collapse Tools</label>
+    <div class="search-group">
+      <select class="search-scope" id="search-scope">
+        <option value="all">All</option>
+        <option value="claude">Claude</option>
+        <option value="tools">Tools</option>
+        <option value="you">You</option>
+      </select>
+      <input type="text" class="search-box" id="search-box" placeholder="Search messages...">
+    </div>
+    <span class="controls-sep">|</span>
+    <label class="font-size-label">Font <input type="range" id="font-size" min="10" max="22" step="1" value="14"> <span id="font-size-val">14</span>px</label>
+  </div>
+  <div class="messages" id="messages">
+    <div class="loading"><div class="spinner"></div>Parsing session...</div>
+  </div>
+</div>
+
+<script>
+// ---- State ----
+let allMessages = [];
+let renderedEls = [];
+
+// ---- File loading ----
+const landing = document.getElementById('landing');
+const viewer = document.getElementById('viewer');
+const dropZone = document.getElementById('drop-zone');
+const fileInput = document.getElementById('file-input');
+
+// Try the modern File System Access API first (Chrome/Edge) — it remembers last directory
+async function openFilePicker() {
+  if (window.showOpenFilePicker) {
+    try {
+      const [handle] = await window.showOpenFilePicker({
+        types: [{ description: 'JSONL Session Files', accept: { 'application/jsonl': ['.jsonl'] } }],
+        multiple: false,
+      });
+      const file = await handle.getFile();
+      loadFile(file);
+      return;
+    } catch (e) {
+      if (e.name === 'AbortError') return; // user cancelled
+      // Fall through to legacy picker
+    }
+  }
+  fileInput.click();
+}
+
+dropZone.addEventListener('click', openFilePicker);
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  if (e.dataTransfer.files.length) loadFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', () => { if (fileInput.files.length) loadFile(fileInput.files[0]); });
+document.getElementById('btn-new').addEventListener('click', () => {
+  landing.style.display = 'flex';
+  viewer.style.display = 'none';
+  fileInput.value = '';
+  currentFilename = '';
+  sessionStorage.removeItem('sv-file');
+  sessionStorage.removeItem('sv-filename');
+  syncToURL();
+});
+
+// Copy command button
+document.getElementById('copy-cmd').addEventListener('click', () => {
+  const cmd = document.getElementById('quick-cmd').textContent;
+  navigator.clipboard.writeText(cmd).then(() => {
+    const btn = document.getElementById('copy-cmd');
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
+  });
+});
+
+// Open Finder button — can't actually open Finder from browser,
+// so copy the open command instead
+document.getElementById('open-finder').addEventListener('click', () => {
+  const cmd = 'open ~/.claude/projects';
+  navigator.clipboard.writeText(cmd).then(() => {
+    const btn = document.getElementById('open-finder');
+    const orig = btn.textContent;
+    btn.textContent = 'Copied "open ~/.claude/projects" — paste in terminal';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 2500);
+  });
+});
+
+function loadFile(file) {
+  landing.style.display = 'none';
+  viewer.style.display = 'block';
+  document.getElementById('messages').innerHTML = '<div class="loading"><div class="spinner"></div>Parsing session...</div>';
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    requestAnimationFrame(() => parseAndRender(reader.result, file.name));
+  };
+  reader.readAsText(file);
+}
+
+// ---- Parsing ----
+let currentFilename = '';
+function parseAndRender(text, filename) {
+  // Cache in sessionStorage so refresh can restore
+  currentFilename = filename;
+  try { sessionStorage.setItem('sv-file', text); sessionStorage.setItem('sv-filename', filename); } catch(e) { /* quota */ }
+  const lines = text.split('\n').filter(l => l.trim());
+  const raw = [];
+  for (const line of lines) {
+    try { raw.push(JSON.parse(line)); } catch(e) { /* skip malformed */ }
+  }
+
+  // Extract meaningful messages
+  allMessages = [];
+  let sessionId = '';
+  let firstTs = null, lastTs = null;
+  let userCount = 0, assistantCount = 0, toolCount = 0;
+
+  for (const obj of raw) {
+    const type = obj.type;
+    const ts = obj.timestamp;
+    if (ts) {
+      if (!firstTs) firstTs = ts;
+      lastTs = ts;
+    }
+    if (!sessionId && obj.sessionId) sessionId = obj.sessionId;
+
+    if (type === 'user') {
+      const msg = obj.message;
+      if (!msg) continue;
+      const content = msg.content;
+
+      // Plain user message
+      if (typeof content === 'string') {
+        userCount++;
+        allMessages.push({ kind: 'user', text: content, ts, uuid: obj.uuid });
+      }
+      // Tool result(s)
+      else if (Array.isArray(content)) {
+        for (const block of content) {
+          if (block.type === 'tool_result') {
+            toolCount++;
+            let resultText = '';
+            if (typeof block.content === 'string') {
+              resultText = block.content;
+            } else if (Array.isArray(block.content)) {
+              resultText = block.content.map(c => c.text || c.content || JSON.stringify(c)).join('\n');
+            }
+            const isError = block.is_error === true;
+            allMessages.push({ kind: 'tool-result', text: resultText, toolUseId: block.tool_use_id, isError, ts, uuid: obj.uuid });
+          }
+        }
+      }
+    }
+    else if (type === 'assistant') {
+      const msg = obj.message;
+      if (!msg || !Array.isArray(msg.content)) continue;
+
+      for (const block of msg.content) {
+        if (block.type === 'text' && block.text && block.text.trim()) {
+          assistantCount++;
+          allMessages.push({ kind: 'assistant', text: block.text, ts, uuid: obj.uuid });
+        }
+        else if (block.type === 'thinking') {
+          const thinking = block.thinking || '';
+          if (thinking.trim().length > 0) {
+            allMessages.push({ kind: 'thinking', text: thinking, ts, uuid: obj.uuid });
+          }
+        }
+        else if (block.type === 'tool_use') {
+          toolCount++;
+          allMessages.push({
+            kind: 'tool-use',
+            toolName: block.name,
+            toolId: block.id,
+            input: block.input || {},
+            ts,
+            uuid: obj.uuid,
+          });
+        }
+      }
+    }
+    else if (type === 'system' && obj.subtype === 'turn_duration') {
+      allMessages.push({ kind: 'system', text: `Turn completed in ${(obj.durationMs / 1000).toFixed(1)}s`, ts, uuid: obj.uuid });
+    }
+  }
+
+  // Stats
+  document.getElementById('session-info').textContent = sessionId ? `Session: ${sessionId}` : filename;
+  const duration = firstTs && lastTs ? formatDuration(new Date(lastTs) - new Date(firstTs)) : '?';
+  document.getElementById('stats').innerHTML =
+    `<span>User <span class="stat-val">${userCount}</span></span>` +
+    `<span>Assistant <span class="stat-val">${assistantCount}</span></span>` +
+    `<span>Tools <span class="stat-val">${toolCount}</span></span>` +
+    `<span>Duration <span class="stat-val">${duration}</span></span>`;
+
+  renderMessages();
+  syncToURL();
+}
+
+function formatDuration(ms) {
+  const s = Math.floor(ms / 1000);
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ${s % 60}s`;
+  const h = Math.floor(m / 60);
+  return `${h}h ${m % 60}m`;
+}
+
+// ---- Rendering ----
+function renderMessages() {
+  const container = document.getElementById('messages');
+  container.innerHTML = '';
+  renderedEls = [];
+
+  let lastKind = '';
+  let turnNum = 0;
+
+  for (let i = 0; i < allMessages.length; i++) {
+    const m = allMessages[i];
+
+    // Turn separator: when switching from assistant/tool back to user
+    if (m.kind === 'user' && lastKind && lastKind !== 'user') {
+      turnNum++;
+      const sep = document.createElement('div');
+      sep.className = 'turn-sep';
+      sep.textContent = `Turn ${turnNum}`;
+      container.appendChild(sep);
+    }
+
+    const el = createMessageEl(m);
+    renderedEls.push({ el, msg: m });
+    container.appendChild(el);
+    lastKind = m.kind;
+  }
+
+  applyFilters();
+
+  // Render LaTeX in all message bodies
+  if (typeof renderMathInElement === 'function') {
+    renderMathInElement(container, {
+      delimiters: [
+        {left: '$$', right: '$$', display: true},
+        {left: '$', right: '$', display: false},
+        {left: '\\(', right: '\\)', display: false},
+        {left: '\\[', right: '\\]', display: true}
+      ],
+      throwOnError: false,
+    });
+  }
+}
+
+function createMessageEl(m) {
+  const el = document.createElement('div');
+
+  if (m.kind === 'user') {
+    el.className = 'msg user';
+    el.innerHTML =
+      `<div class="msg-header"><span class="badge">You</span><span class="timestamp">${fmtTime(m.ts)}</span></div>` +
+      `<div class="msg-body">${renderMarkdown(m.text)}</div>`;
+  }
+  else if (m.kind === 'assistant') {
+    el.className = 'msg assistant';
+    el.innerHTML =
+      `<div class="msg-header"><span class="badge">Claude</span><span class="timestamp">${fmtTime(m.ts)}</span></div>` +
+      `<div class="msg-body">${renderMarkdown(m.text)}</div>`;
+  }
+  else if (m.kind === 'thinking') {
+    el.className = 'msg thinking collapsible';
+    el.dataset.filter = 'thinking';
+    el.innerHTML =
+      `<div class="msg-header"><span class="badge">Thinking</span><span class="timestamp">${fmtTime(m.ts)}</span></div>` +
+      `<div class="msg-body">${escHtml(m.text)}</div>`;
+    el.querySelector('.msg-header').addEventListener('click', () => el.classList.toggle('expanded'));
+  }
+  else if (m.kind === 'tool-use') {
+    el.className = 'msg tool-use collapsible';
+    el.dataset.filter = 'tool';
+    const collapseDefault = document.getElementById('collapse-tools').checked;
+    if (!collapseDefault) el.classList.add('expanded');
+
+    const inputDisplay = formatToolInput(m.toolName, m.input);
+    el.innerHTML =
+      `<div class="msg-header"><span class="badge">Tool</span><span class="tool-name">${escHtml(m.toolName)}</span>` +
+      `${m.input.description ? '<span style="color:var(--text-dim);font-weight:400;font-size:0.78rem"> — ' + escHtml(m.input.description) + '</span>' : ''}` +
+      `<span class="timestamp">${fmtTime(m.ts)}</span></div>` +
+      `<div class="msg-body"><div class="tool-input">${inputDisplay}</div></div>`;
+    el.querySelector('.msg-header').addEventListener('click', () => el.classList.toggle('expanded'));
+  }
+  else if (m.kind === 'tool-result') {
+    el.className = 'msg tool-result collapsible' + (m.isError ? ' has-error' : '');
+    el.dataset.filter = 'tool-result';
+    const collapseDefault = document.getElementById('collapse-tools').checked;
+    if (!collapseDefault) el.classList.add('expanded');
+
+    const text = m.text || '(empty)';
+    const truncated = text.length > 3000;
+    const displayText = truncated ? text.slice(0, 3000) : text;
+
+    el.innerHTML =
+      `<div class="msg-header"><span class="badge">${m.isError ? 'Error' : 'Result'}</span><span class="timestamp">${fmtTime(m.ts)}</span></div>` +
+      `<div class="msg-body${truncated ? ' truncated' : ''}">${escHtml(displayText)}</div>`;
+
+    const header = el.querySelector('.msg-header');
+    const body = el.querySelector('.msg-body');
+    header.addEventListener('click', () => el.classList.toggle('expanded'));
+    if (truncated) {
+      body.addEventListener('click', (e) => {
+        if (body.classList.contains('truncated')) {
+          body.classList.remove('truncated');
+          body.classList.add('expanded');
+          body.textContent = text;
+        }
+      });
+    }
+  }
+  else if (m.kind === 'system') {
+    el.className = 'msg system-msg';
+    el.dataset.filter = 'system';
+    el.innerHTML =
+      `<div class="msg-header"><span class="badge">System</span><span class="timestamp">${fmtTime(m.ts)}</span></div>` +
+      `<div class="msg-body">${escHtml(m.text)}</div>`;
+  }
+
+  // Add copy button to messages with text content
+  if (m.text) {
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'copy-btn';
+    copyBtn.textContent = 'Copy';
+    copyBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      navigator.clipboard.writeText(m.text).then(() => {
+        copyBtn.textContent = 'Copied!';
+        copyBtn.classList.add('copied');
+        setTimeout(() => { copyBtn.textContent = 'Copy'; copyBtn.classList.remove('copied'); }, 1500);
+      });
+    });
+    const header = el.querySelector('.msg-header');
+    if (header) header.appendChild(copyBtn);
+  }
+
+  return el;
+}
+
+function formatToolInput(toolName, input) {
+  if (toolName === 'Read') {
+    return `<span style="color:var(--accent-orange)">Read</span> ${escHtml(input.file_path || '')}` +
+      (input.offset ? ` (offset: ${input.offset})` : '') +
+      (input.limit ? ` (limit: ${input.limit})` : '');
+  }
+  if (toolName === 'Bash') {
+    return `<span style="color:var(--accent-orange)">$</span> ${escHtml(input.command || '')}`;
+  }
+  if (toolName === 'Write') {
+    const preview = (input.content || '').slice(0, 500);
+    return `<span style="color:var(--accent-orange)">Write</span> ${escHtml(input.file_path || '')}\n\n${escHtml(preview)}${(input.content || '').length > 500 ? '\n...' : ''}`;
+  }
+  if (toolName === 'Edit') {
+    return `<span style="color:var(--accent-orange)">Edit</span> ${escHtml(input.file_path || '')}\n` +
+      `<span style="color:var(--accent-red)">- ${escHtml((input.old_string || '').slice(0, 300))}</span>\n` +
+      `<span style="color:var(--accent-green)">+ ${escHtml((input.new_string || '').slice(0, 300))}</span>`;
+  }
+  if (toolName === 'Glob') {
+    return `<span style="color:var(--accent-orange)">Glob</span> ${escHtml(input.pattern || '')}` +
+      (input.path ? ` in ${escHtml(input.path)}` : '');
+  }
+  if (toolName === 'Grep') {
+    return `<span style="color:var(--accent-orange)">Grep</span> /${escHtml(input.pattern || '')}/` +
+      (input.path ? ` in ${escHtml(input.path)}` : '') +
+      (input.glob ? ` (${escHtml(input.glob)})` : '');
+  }
+  if (toolName === 'Agent') {
+    return `<span style="color:var(--accent-orange)">Agent</span> ${escHtml(input.description || '')}\n\n${escHtml((input.prompt || '').slice(0, 500))}`;
+  }
+  // Default
+  return escHtml(JSON.stringify(input, null, 2));
+}
+
+// ---- Simple markdown ----
+function renderMarkdown(text) {
+  if (!text) return '';
+  let html = escHtml(text);
+
+  // Code blocks
+  html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => {
+    return `<pre><code>${code}</code></pre>`;
+  });
+
+  // Inline code
+  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+  // Headers
+  html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+  html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+  html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+
+  // Bold / italic
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+
+  // Lists
+  html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
+  html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
+
+  // Blockquotes
+  html = html.replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>');
+
+  // Paragraphs (double newline)
+  html = html.replace(/\n\n/g, '</p><p>');
+  html = '<p>' + html + '</p>';
+  html = html.replace(/<p><\/p>/g, '');
+
+  // Clean up artifacts
+  html = html.replace(/<p>(<h[123]>)/g, '$1');
+  html = html.replace(/(<\/h[123]>)<\/p>/g, '$1');
+  html = html.replace(/<p>(<pre>)/g, '$1');
+  html = html.replace(/(<\/pre>)<\/p>/g, '$1');
+  html = html.replace(/<p>(<ul>)/g, '$1');
+  html = html.replace(/(<\/ul>)<\/p>/g, '$1');
+  html = html.replace(/<p>(<blockquote>)/g, '$1');
+  html = html.replace(/(<\/blockquote>)<\/p>/g, '$1');
+
+  return html;
+}
+
+function escHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function fmtTime(ts) {
+  if (!ts) return '';
+  try {
+    const d = new Date(ts);
+    return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+  } catch { return ''; }
+}
+
+// ---- Filtering ----
+const convoOnly = document.getElementById('convo-only');
+const showThinking = document.getElementById('show-thinking');
+const showToolResults = document.getElementById('show-tool-results');
+const showSystem = document.getElementById('show-system');
+const collapseTools = document.getElementById('collapse-tools');
+const searchBox = document.getElementById('search-box');
+const searchScope = document.getElementById('search-scope');
+
+convoOnly.addEventListener('change', () => {
+  const on = convoOnly.checked;
+  // Dim the detail toggles when convo-only is active
+  const row = convoOnly.closest('.controls-row');
+  showThinking.disabled = on;
+  showToolResults.disabled = on;
+  showSystem.disabled = on;
+  collapseTools.disabled = on;
+  row.style.setProperty('--detail-opacity', on ? '0.35' : '1');
+  // Style the detail labels
+  document.querySelectorAll('.controls-row label:not(.toggle-convo)').forEach(l => {
+    l.style.opacity = on ? '0.35' : '1';
+    l.style.pointerEvents = on ? 'none' : 'auto';
+  });
+  applyFilters();
+});
+
+showThinking.addEventListener('change', applyFilters);
+showToolResults.addEventListener('change', applyFilters);
+showSystem.addEventListener('change', applyFilters);
+collapseTools.addEventListener('change', () => {
+  const collapse = collapseTools.checked;
+  for (const { el, msg } of renderedEls) {
+    if (msg.kind === 'tool-use' || msg.kind === 'tool-result') {
+      if (collapse) el.classList.remove('expanded');
+      else el.classList.add('expanded');
+    }
+  }
+});
+searchBox.addEventListener('input', applyFilters);
+searchScope.addEventListener('change', applyFilters);
+
+function applyFilters() {
+  const query = searchBox.value.toLowerCase().trim();
+  const isConvoOnly = convoOnly.checked;
+  const sThinking = showThinking.checked;
+  const sToolResults = showToolResults.checked;
+  const sSystem = showSystem.checked;
+  const scope = searchScope.value; // 'all', 'claude', 'tools', 'you'
+
+  for (const { el, msg } of renderedEls) {
+    let visible = true;
+
+    // Conversation Only: show only user + assistant text
+    if (isConvoOnly) {
+      if (msg.kind !== 'user' && msg.kind !== 'assistant') visible = false;
+    } else {
+      // Detail toggles (only apply when not in convo-only mode)
+      if (msg.kind === 'thinking' && !sThinking) visible = false;
+      if (msg.kind === 'tool-result' && !sToolResults) visible = false;
+      if (msg.kind === 'system' && !sSystem) visible = false;
+    }
+
+    // Search with scope
+    if (visible && query) {
+      // First check scope — skip messages outside the target scope
+      const inScope = matchesScope(msg, scope);
+      if (!inScope) {
+        visible = false;
+      } else {
+        const searchable = getSearchableText(msg);
+        if (!searchable.toLowerCase().includes(query)) visible = false;
+      }
+    }
+
+    el.classList.toggle('hidden', !visible);
+  }
+}
+
+function matchesScope(msg, scope) {
+  if (scope === 'all') return true;
+  if (scope === 'claude') return msg.kind === 'assistant' || msg.kind === 'thinking';
+  if (scope === 'tools') return msg.kind === 'tool-use' || msg.kind === 'tool-result';
+  if (scope === 'you') return msg.kind === 'user';
+  return true;
+}
+
+function getSearchableText(msg) {
+  if (msg.text) return msg.text;
+  if (msg.toolName) {
+    return msg.toolName + ' ' + (msg.input?.description || '') + ' ' + JSON.stringify(msg.input || '');
+  }
+  return '';
+}
+
+// ---- Font Size ----
+const fontSizeSlider = document.getElementById('font-size');
+const fontSizeVal = document.getElementById('font-size-val');
+fontSizeSlider.addEventListener('input', () => {
+  const v = fontSizeSlider.value;
+  document.documentElement.style.fontSize = v + 'px';
+  fontSizeVal.textContent = v;
+  syncToURL();
+});
+
+// ---- URL Query Param Sync ----
+function syncToURL() {
+  const p = new URLSearchParams();
+  if (currentFilename) p.set('file', currentFilename);
+  if (convoOnly.checked) p.set('convo', '1');
+  if (showThinking.checked) p.set('thinking', '1');
+  if (!showToolResults.checked) p.set('toolresults', '0');
+  if (showSystem.checked) p.set('system', '1');
+  if (!collapseTools.checked) p.set('collapse', '0');
+  if (searchBox.value) p.set('q', searchBox.value);
+  if (searchScope.value !== 'all') p.set('scope', searchScope.value);
+  if (fontSizeSlider.value !== '14') p.set('fs', fontSizeSlider.value);
+  const qs = p.toString();
+  history.replaceState(null, '', qs ? '?' + qs : location.pathname);
+}
+
+function initFromURL() {
+  const p = new URLSearchParams(location.search);
+  if (p.has('convo')) convoOnly.checked = p.get('convo') === '1';
+  if (p.has('thinking')) showThinking.checked = p.get('thinking') === '1';
+  if (p.has('toolresults')) showToolResults.checked = p.get('toolresults') !== '0';
+  if (p.has('system')) showSystem.checked = p.get('system') === '1';
+  if (p.has('collapse')) collapseTools.checked = p.get('collapse') !== '0';
+  if (p.has('q')) searchBox.value = p.get('q');
+  if (p.has('scope')) searchScope.value = p.get('scope');
+  if (p.has('fs')) {
+    const fs = p.get('fs');
+    fontSizeSlider.value = fs;
+    fontSizeVal.textContent = fs;
+    document.documentElement.style.fontSize = fs + 'px';
+  }
+  // Trigger convo-only side effects if active
+  if (convoOnly.checked) convoOnly.dispatchEvent(new Event('change'));
+
+  // Auto-load from ?load= parameter (sibling file fetch, works on file://)
+  if (p.has('load')) {
+    const fname = p.get('load');
+    landing.style.display = 'none';
+    viewer.style.display = 'block';
+    document.getElementById('messages').innerHTML = '<div class="loading"><div class="spinner"></div>Loading session...</div>';
+    fetch(fname)
+      .then(r => { if (!r.ok) throw new Error(r.statusText); return r.text(); })
+      .then(text => requestAnimationFrame(() => parseAndRender(text, fname)))
+      .catch(err => {
+        document.getElementById('messages').innerHTML = `<div class="loading" style="color:var(--accent-red)">Failed to load ${fname}: ${err.message}</div>`;
+      });
+  }
+  // Fallback: restore from sessionStorage on refresh
+  else if (p.has('file')) {
+    const cached = sessionStorage.getItem('sv-file');
+    const cachedName = sessionStorage.getItem('sv-filename');
+    if (cached && cachedName === p.get('file')) {
+      landing.style.display = 'none';
+      viewer.style.display = 'block';
+      requestAnimationFrame(() => parseAndRender(cached, cachedName));
+    }
+  }
+}
+
+initFromURL();
+
+// Wire existing controls to sync URL
+[convoOnly, showThinking, showToolResults, showSystem, collapseTools].forEach(el => {
+  el.addEventListener('change', syncToURL);
+});
+searchBox.addEventListener('input', syncToURL);
+searchScope.addEventListener('change', syncToURL);
+</script>
+</body>
+</html>

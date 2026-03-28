@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cquest"
-version = "0.17.0"
+version = "0.18.0"
 description = "Context management for building long-horizon projects on Claude Code"
 requires-python = ">=3.11"
 dependencies = [
@@ -13,8 +13,14 @@ dependencies = [
     "rich>=13.0",
 ]
 
+[project.optional-dependencies]
+full = ["send2trash>=1.8"]
+
 [project.scripts]
 cquest = "cquest.cli:cli"
 
 [tool.setuptools.packages.find]
 include = ["cquest*"]
+
+[tool.setuptools.package-data]
+cquest = ["session-viewer.html"]
